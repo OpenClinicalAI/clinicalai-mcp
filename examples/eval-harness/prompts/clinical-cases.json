@@ -1,0 +1,27 @@
+{
+  "calc": [
+    "A 76-year-old woman with hypertension, type 2 diabetes, and a prior TIA. Compute her CHA2DS2-VASc and tell me whether anticoagulation is indicated.",
+    "Estimate creatinine clearance and CKD-EPI 2021 eGFR for a 68-year-old man, weight 75 kg, serum creatinine 1.4 mg/dL. Which should I use for renal drug dosing?",
+    "Run a sepsis panel for an ED patient with RR 26, altered mentation, SBP 90.",
+    "A patient with cirrhosis: bilirubin 3.1, INR 1.8, creatinine 1.6, sodium 132. What's their MELD-Na?",
+    "Wells PE + PERC for a 35-year-old with pleuritic chest pain, HR 92, O2 sat 97%, no leg swelling, no hemoptysis, no surgery, no prior PE, not on hormones."
+  ],
+  "drugs": [
+    "Look up metformin and give me a full safety summary including any active recalls.",
+    "What's the FDA-label dose adjustment for metformin (RxCUI 6809) in a patient with CrCl 35 mL/min?",
+    "Find adverse-event report counts for atorvastatin since 2023.",
+    "What does the suite return for drug interactions between metformin and glipizide (RxCUIs 6809 and 4821)? Note the tier."
+  ],
+  "evidence": [
+    "Summarize the evidence for SGLT2 inhibitors in heart failure with reduced ejection fraction.",
+    "Recent (last 2 years) RCTs on tirzepatide for weight loss — find a few and tell me what they found.",
+    "Compare metformin vs sitagliptin for type 2 diabetes — what does the comparative-effectiveness literature say?",
+    "Are there recruiting trials for SGLT2 inhibitors in chronic kidney disease right now?"
+  ],
+  "terminologies": [
+    "Find ICD-10-CM codes for type 2 diabetes mellitus.",
+    "Map the term 'glucose' across ICD-10, LOINC, and SNOMED (if licensed).",
+    "What USPSTF Grade A recommendations apply to a 55-year-old patient? Read me the AHRQ license clause that comes back.",
+    "Look up the USPSTF recommendation on aspirin for primary CVD prevention in adults 60 and older. Quote the recommendation text verbatim."
+  ]
+}

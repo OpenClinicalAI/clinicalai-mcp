@@ -1,0 +1,29 @@
+# clinical-mcp deployment policy — personal
+#
+# This is the default. It assumes NO infrastructure-level protections (no BAA-covered
+# storage, no audit pipeline, no managed retention). Suitable for laptops, students,
+# casual users, anyone running this outside a covered environment.
+#
+# Selecting it: this preset is the default with no env vars set. You only need this
+# file if you want to customize it; point CLINICAL_MCP_POLICY_FILE at the path.
+deployment_type: personal
+
+cache:
+  # In `personal`, sensitive-mode cache writes are blocked entirely regardless of
+  # this value. Reads of existing (reference-data) cache entries are still allowed.
+  persist_sensitive_inputs: false
+  encrypted_at_rest: false
+
+logging:
+  # No file logging in `personal` — structured audit events go to stderr only.
+  audit_sink: null
+  payload_redaction: true
+  # Soft PHI-pattern nudges in `safe` mode are on; a `personal` user benefits from them.
+  phi_pattern_warnings: true
+
+upstream_egress:
+  # Universal floor. Not user-overridable — any value other than `deny` rejects the policy.
+  phi_policy: deny
+
+phi_redaction:
+  backend: regex

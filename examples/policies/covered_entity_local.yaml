@@ -1,0 +1,53 @@
+# clinical-mcp deployment policy — covered_entity (local foundation backend)
+#
+# Template for a hospital / covered-entity deployment that runs the
+# foundation-model PHI redactor LOCALLY (via an Ollama-compatible endpoint),
+# so PHI never leaves the deployment. This is the recommended configuration
+# when the deployer does NOT have BAA + Zero Data Retention with a cloud
+# foundation-model provider.
+#
+# Hardware reality:
+#   - Solo clinician / small clinic: workstation with a capable GPU, or a
+#     Mac Studio / Mac mini Pro cluster running Llama 3.1 70B (or larger).
+#   - Hospital scale: institutional inference server (vLLM, TGI, Ollama on
+#     bare metal) sized for concurrent calls.
+# Recall scales with model size — small (≤8B) models materially underperform
+# on the redaction long tail. See ARCHITECTURE.md §3.5.4 for the F1 framing.
+#
+# Selecting it: set CLINICAL_MCP_POLICY_FILE=/etc/clinical-mcp/policy.yaml
+#
+# Fail-loud rules that apply here (the server refuses to start otherwise):
+#   - logging.audit_sink MUST be non-null.
+#   - cache.persist_sensitive_inputs: true REQUIRES cache.encrypted_at_rest: true
+#     AND the CLINICAL_CACHE_ENCRYPTION_KEY env var to be set.
+#   - All env vars referenced by this file MUST resolve at startup.
+deployment_type: covered_entity
+
+cache:
+  persist_sensitive_inputs: true
+  encrypted_at_rest: true
+
+logging:
+  audit_sink: "syslog://localhost:514"
+  payload_redaction: false
+  phi_pattern_warnings: false
+
+upstream_egress:
+  phi_policy: deny
+
+phi_redaction:
+  # Local foundation model — PHI never leaves the deployment.
+  backend: foundation
+  # No external disclosure happens with a local model, but record the
+  # inference-server reference for audit (model name, server fingerprint,
+  # version pin, deployment ticket).
+  compliance_attested_by: "REPLACE WITH LOCAL INFERENCE REFERENCE — e.g. 'On-prem Ollama @ inference-01.internal, llama-3.1-70b-instruct-q5_K_M, pinned 2026-01-15'"
+  foundation:
+    provider: local
+    # Model name as exposed by your Ollama-compatible endpoint. Larger
+    # models give better recall — prefer Llama 3.1 70B or a clinical
+    # fine-tune over the 8B class for production use.
+    model: llama-3.1-70b-instruct
+    # The env var holding the endpoint URL (e.g. http://localhost:11434).
+    api_key_env: LOCAL_MODEL_ENDPOINT
+    prompt_template: safe_harbor_verbatim

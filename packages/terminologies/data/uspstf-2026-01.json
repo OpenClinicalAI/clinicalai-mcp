@@ -1,0 +1,129 @@
+{
+  "snapshot_version": "2026-01",
+  "snapshot_date": "2026-01-15",
+  "source": "U.S. Preventive Services Task Force (AHRQ)",
+  "source_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics",
+  "license_notice": "USPSTF content is reproduced verbatim under AHRQ's redistribution permission. The text must not be modified, sold, or incorporated into a profit-making venture without written AHRQ permission.",
+  "recommendations": [
+    {
+      "id": "hypertension-screening-adults",
+      "title": "Screening for Hypertension in Adults",
+      "topic": "Cardiovascular disease prevention",
+      "grade": "A",
+      "population": "Adults 18 years or older without known hypertension.",
+      "specific_recommendation": "The USPSTF recommends screening for hypertension in adults 18 years or older with office blood pressure measurement, with confirmation outside of the clinical setting before starting treatment.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/hypertension-in-adults-screening",
+      "date_issued": "2021-04-27"
+    },
+    {
+      "id": "colorectal-cancer-screening",
+      "title": "Colorectal Cancer Screening",
+      "topic": "Cancer screening",
+      "grade": "A",
+      "population": "Adults 50 to 75 years.",
+      "specific_recommendation": "The USPSTF recommends screening for colorectal cancer in all adults aged 50 to 75 years. The decision to screen for colorectal cancer in adults aged 45 to 49 years carries a Grade B recommendation.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/colorectal-cancer-screening",
+      "date_issued": "2021-05-18"
+    },
+    {
+      "id": "lung-cancer-screening",
+      "title": "Lung Cancer Screening with Low-Dose CT",
+      "topic": "Cancer screening",
+      "grade": "B",
+      "population": "Adults 50 to 80 years with a 20 pack-year smoking history who currently smoke or quit within the past 15 years.",
+      "specific_recommendation": "The USPSTF recommends annual screening for lung cancer with low-dose computed tomography in adults aged 50 to 80 years who have a 20 pack-year smoking history and currently smoke or have quit within the past 15 years. Screening should be discontinued once a person has not smoked for 15 years or develops a health problem that substantially limits life expectancy.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/lung-cancer-screening",
+      "date_issued": "2021-03-09"
+    },
+    {
+      "id": "breast-cancer-screening",
+      "title": "Breast Cancer Screening",
+      "topic": "Cancer screening",
+      "grade": "B",
+      "population": "Women 40 to 74 years at average risk.",
+      "specific_recommendation": "The USPSTF recommends biennial screening mammography for women aged 40 to 74 years.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening",
+      "date_issued": "2024-04-30"
+    },
+    {
+      "id": "cervical-cancer-screening",
+      "title": "Cervical Cancer Screening",
+      "topic": "Cancer screening",
+      "grade": "A",
+      "population": "Women 21 to 65 years.",
+      "specific_recommendation": "The USPSTF recommends screening for cervical cancer every 3 years with cervical cytology alone in women aged 21 to 29 years. For women aged 30 to 65, the USPSTF recommends screening every 3 years with cervical cytology alone, every 5 years with hrHPV testing alone, or every 5 years with hrHPV testing in combination with cytology (co-testing).",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening",
+      "date_issued": "2018-08-21"
+    },
+    {
+      "id": "prediabetes-and-type-2-diabetes-screening",
+      "title": "Screening for Prediabetes and Type 2 Diabetes",
+      "topic": "Endocrine / metabolic",
+      "grade": "B",
+      "population": "Asymptomatic adults 35 to 70 years who are overweight or obese.",
+      "specific_recommendation": "The USPSTF recommends screening for prediabetes and type 2 diabetes in adults aged 35 to 70 years who have overweight or obesity. Clinicians should offer or refer patients with prediabetes to effective preventive interventions.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/screening-for-prediabetes-and-type-2-diabetes",
+      "date_issued": "2021-08-24"
+    },
+    {
+      "id": "depression-screening-adults",
+      "title": "Screening for Depression and Suicide Risk in Adults",
+      "topic": "Mental and behavioral health",
+      "grade": "B",
+      "population": "Adults 19 years or older, including pregnant and postpartum persons and older adults.",
+      "specific_recommendation": "The USPSTF recommends screening for depression in the general adult population, including pregnant and postpartum persons. Screening should be implemented with adequate systems in place to ensure accurate diagnosis, effective treatment, and appropriate follow-up.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/screening-depression-suicide-risk-adults",
+      "date_issued": "2023-06-20"
+    },
+    {
+      "id": "tobacco-cessation-adults",
+      "title": "Tobacco Smoking Cessation in Adults",
+      "topic": "Behavioral counseling",
+      "grade": "A",
+      "population": "Adults who use tobacco, including pregnant persons.",
+      "specific_recommendation": "The USPSTF recommends that clinicians ask all adults about tobacco use, advise them to stop using tobacco, and provide behavioral interventions and U.S. Food and Drug Administration-approved pharmacotherapy for cessation to nonpregnant adults who use tobacco.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/tobacco-use-in-adults-and-pregnant-women-counseling-and-interventions",
+      "date_issued": "2021-01-19"
+    },
+    {
+      "id": "statin-primary-cvd-prevention",
+      "title": "Statin Use for the Primary Prevention of Cardiovascular Disease in Adults",
+      "topic": "Cardiovascular disease prevention",
+      "grade": "B",
+      "population": "Adults 40 to 75 years with one or more CVD risk factors and an estimated 10-year CVD risk of 10% or greater.",
+      "specific_recommendation": "The USPSTF recommends that adults aged 40 to 75 years who have 1 or more cardiovascular disease risk factors and a 10-year cardiovascular disease event risk of 10% or greater be prescribed a statin for the primary prevention of cardiovascular disease.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/statin-use-in-adults-preventive-medication",
+      "date_issued": "2022-08-23"
+    },
+    {
+      "id": "aspirin-cvd-prevention-older-adults",
+      "title": "Aspirin Use to Prevent Cardiovascular Disease (Adults ≥60)",
+      "topic": "Cardiovascular disease prevention",
+      "grade": "D",
+      "population": "Adults 60 years or older.",
+      "specific_recommendation": "The USPSTF recommends against initiating low-dose aspirin use for the primary prevention of cardiovascular disease in adults 60 years or older.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/aspirin-to-prevent-cardiovascular-disease-preventive-medication",
+      "date_issued": "2022-04-26"
+    },
+    {
+      "id": "hiv-screening-adolescents-adults",
+      "title": "Screening for HIV Infection in Adolescents and Adults",
+      "topic": "Infectious disease",
+      "grade": "A",
+      "population": "Adolescents and adults aged 15 to 65 years.",
+      "specific_recommendation": "The USPSTF recommends that clinicians screen for HIV infection in adolescents and adults aged 15 to 65 years. Younger adolescents and older adults who are at increased risk of infection should also be screened.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/human-immunodeficiency-virus-hiv-infection-screening",
+      "date_issued": "2019-06-11"
+    },
+    {
+      "id": "obesity-behavioral-interventions-adults",
+      "title": "Behavioral Counseling Interventions for Adults with Obesity",
+      "topic": "Behavioral counseling",
+      "grade": "B",
+      "population": "Adults with a body mass index of 30 or greater.",
+      "specific_recommendation": "The USPSTF recommends that clinicians offer or refer adults with a body mass index of 30 or higher to intensive, multicomponent behavioral interventions.",
+      "topic_url": "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/obesity-in-adults-interventions",
+      "date_issued": "2018-09-18"
+    }
+  ]
+}

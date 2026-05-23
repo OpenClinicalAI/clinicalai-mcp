@@ -1,0 +1,35 @@
+# clinical-mcp deployment policy — research_deid
+#
+# For research environments operating on datasets that have ALREADY been
+# HIPAA Safe Harbor de-identified upstream. Effectively `personal` minus the
+# PHI-pattern warnings (which become false-positive noise on de-identified text).
+#
+# IMPORTANT — this policy assumes de-identification HAS ALREADY HAPPENED on
+# the data flowing through the MCP. It does not de-identify anything itself.
+# If your dataset is not yet Safe Harbor de-identified, use
+# `examples/policies/covered_entity.yaml` (cloud foundation model under BAA)
+# or `examples/policies/covered_entity_local.yaml` (local Ollama-compatible
+# model) to run redaction on the way in — see ARCHITECTURE.md §3.5.4 for
+# the F1 framing and BAA/ZDR requirements for cloud foundation backends.
+#
+# Selecting it: set CLINICAL_MCP_POLICY=research_deid
+# or CLINICAL_MCP_POLICY_FILE pointing at this file.
+deployment_type: research_deid
+
+cache:
+  persist_sensitive_inputs: false
+  encrypted_at_rest: false
+
+logging:
+  audit_sink: null
+  payload_redaction: true
+  # Off: de-identified clinical text triggers false positives that drown the signal.
+  phi_pattern_warnings: false
+
+upstream_egress:
+  phi_policy: deny
+
+phi_redaction:
+  # De-identified data shouldn't need redaction. A `foundation` backend here warns
+  # (not errors) — it's not wrong, just usually unnecessary.
+  backend: regex

@@ -1,0 +1,31 @@
+{
+  "_comment": "Ready-to-paste mcpServers block for Claude Desktop — default personal deployment. The domain servers below ship in later milestones; clinical-mcp v0.1 milestone 1 delivers @clinical-mcp/shared only.",
+  "mcpServers": {
+    "clinical-drugs": {
+      "command": "npx",
+      "args": ["-y", "@clinical-mcp/drugs"],
+      "env": {
+        "OPENFDA_API_KEY": "<optional>",
+        "DRUGBANK_API_KEY": "<optional>"
+      }
+    },
+    "clinical-evidence": {
+      "command": "npx",
+      "args": ["-y", "@clinical-mcp/evidence"],
+      "env": {
+        "NCBI_API_KEY": "<optional>"
+      }
+    },
+    "clinical-calc": {
+      "command": "npx",
+      "args": ["-y", "@clinical-mcp/calc"]
+    },
+    "clinical-terminologies": {
+      "command": "npx",
+      "args": ["-y", "@clinical-mcp/terminologies"],
+      "env": {
+        "UMLS_API_KEY": "<optional>"
+      }
+    }
+  }
+}

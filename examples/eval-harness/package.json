@@ -1,0 +1,21 @@
+{
+  "name": "@clinical-mcp/eval-harness",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Thin Anthropic-SDK agent that drives the clinical-mcp suite for clinician validation and deterministic regression checks (ARCHITECTURE.md §9 item 2).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "clinical-calc": {
+      "command": "node",
+      "args": ["./packages/calc/dist/cli.js"]
+    },
+    "clinical-drugs": {
+      "command": "node",
+      "args": ["./packages/drugs/dist/cli.js"]
+    },
+    "clinical-evidence": {
+      "command": "node",
+      "args": ["./packages/evidence/dist/cli.js"]
+    },
+    "clinical-terminologies": {
+      "command": "node",
+      "args": ["./packages/terminologies/dist/cli.js"]
+    }
+  }
+}

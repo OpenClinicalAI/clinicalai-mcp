@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Build first: domain packages type-check and test against @clinical-mcp/shared's
+      # built declarations, so the workspace must be built before typecheck/test.
+      - name: Build
+        run: pnpm build
+
+      - name: Lint (biome)
+        run: pnpm lint
+
+      - name: Type-check
+        run: pnpm typecheck
+
+      # phi-lint (schema-level PHI invariant) and policy-validation tests
+      # run as part of the vitest suite in each package.
+      - name: Test
+        run: pnpm test

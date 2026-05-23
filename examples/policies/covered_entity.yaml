@@ -1,0 +1,58 @@
+# clinical-mcp deployment policy — covered_entity (cloud foundation backend)
+#
+# Template for a hospital / covered-entity deployment that has negotiated
+# BAA + Zero Data Retention (ZDR) with a cloud foundation-model provider
+# (Anthropic Claude for Enterprise, OpenAI Enterprise / API ZDR, etc.).
+# Hospital IT should REVIEW and ADAPT this file before use.
+#
+# COMPLIANCE PREREQUISITE — READ BEFORE DEPLOYING:
+# This policy sends free-text PHI to a cloud foundation model for redaction
+# (recommended for recall — see ARCHITECTURE.md §3.5.4 for the F1 framing).
+# That is itself a HIPAA disclosure. To deploy this configuration on real
+# PHI you MUST have BOTH of the following in writing with the model provider:
+#   1. A signed Business Associate Agreement (BAA) covering API usage.
+#   2. A non-retention / Zero Data Retention (ZDR) agreement — the provider
+#      contractually does not log, retain, or train on submitted PHI.
+# If you do not have BOTH, use examples/policies/covered_entity_local.yaml
+# instead (Ollama-compatible local model — PHI never leaves the deployment).
+#
+# Selecting it: set CLINICAL_MCP_POLICY_FILE=/etc/clinical-mcp/policy.yaml
+#
+# Fail-loud rules that apply here (the server refuses to start otherwise):
+#   - logging.audit_sink MUST be non-null.
+#   - cache.persist_sensitive_inputs: true REQUIRES cache.encrypted_at_rest: true
+#     AND the CLINICAL_CACHE_ENCRYPTION_KEY env var to be set.
+#   - All env vars referenced by this file MUST resolve at startup.
+deployment_type: covered_entity
+
+cache:
+  # Permitted in `sensitive` mode for covered entities (hashed-keyed, encrypted at rest).
+  persist_sensitive_inputs: true
+  encrypted_at_rest: true
+
+logging:
+  # REQUIRED for covered_entity. Supported: syslog://host:port, file:///path, https://host/path
+  audit_sink: "syslog://localhost:514"
+  # Full payloads are acceptable when the org has its own audit pipeline.
+  payload_redaction: false
+  # Covered entities often don't need the soft `safe`-mode nudge.
+  phi_pattern_warnings: false
+
+upstream_egress:
+  phi_policy: deny
+
+phi_redaction:
+  # Foundation-model redaction is the recommended backend for covered-entity
+  # deployments — materially better recall on the long tail. Requires both
+  # the api_key_env var to resolve AND the BAA/ZDR attestation below.
+  backend: foundation
+  # Free-text attestation — populate with your internal compliance reference
+  # (BAA execution date, contract ID, ticket number, etc.). Not validated by
+  # the MCP; this exists so the policy YAML on disk records WHO signed off
+  # on cloud-PHI disclosure for this deployment. Auditable artifact.
+  compliance_attested_by: "REPLACE WITH BAA / ZDR REFERENCE — e.g. 'BAA executed 2026-01-15, ZDR rider attached, compliance ticket COMP-1234'"
+  foundation:
+    provider: anthropic
+    model: claude-sonnet-4-6
+    api_key_env: ANTHROPIC_API_KEY
+    prompt_template: safe_harbor_verbatim
