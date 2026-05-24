@@ -1,18 +1,18 @@
 {
   "mcpServers": {
-    "clinical-calc": {
+    "clinicalai-calc": {
       "command": "node",
       "args": ["./packages/calc/dist/cli.js"]
     },
-    "clinical-drugs": {
+    "clinicalai-drugs": {
       "command": "node",
       "args": ["./packages/drugs/dist/cli.js"]
     },
-    "clinical-evidence": {
+    "clinicalai-evidence": {
       "command": "node",
       "args": ["./packages/evidence/dist/cli.js"]
     },
-    "clinical-terminologies": {
+    "clinicalai-terminologies": {
       "command": "node",
       "args": ["./packages/terminologies/dist/cli.js"]
     }

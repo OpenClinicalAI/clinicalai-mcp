@@ -108,7 +108,7 @@ type DataTier =
   | "licensed-lexicomp"
   | "licensed-micromedex"
   | "licensed-umls"
-  | "compute"; // for clinical-calc, no external source
+  | "compute"; // for clinicalai-calc, no external source
 
 type PhiMode = "safe" | "sensitive";  // see §3.5 for semantics
 
@@ -710,7 +710,7 @@ Target install in a Claude Desktop config for the **default personal** deploymen
 ```json
 {
   "mcpServers": {
-    "clinical-drugs": {
+    "clinicalai-drugs": {
       "command": "npx",
       "args": ["-y", "@openclinicalai/drugs"],
       "env": {
@@ -718,16 +718,16 @@ Target install in a Claude Desktop config for the **default personal** deploymen
         "DRUGBANK_API_KEY": "<optional>"
       }
     },
-    "clinical-evidence": {
+    "clinicalai-evidence": {
       "command": "npx",
       "args": ["-y", "@openclinicalai/evidence"],
       "env": { "NCBI_API_KEY": "<optional>" }
     },
-    "clinical-calc": {
+    "clinicalai-calc": {
       "command": "npx",
       "args": ["-y", "@openclinicalai/calc"]
     },
-    "clinical-terminologies": {
+    "clinicalai-terminologies": {
       "command": "npx",
       "args": ["-y", "@openclinicalai/terminologies"],
       "env": { "UMLS_API_KEY": "<optional>" }
