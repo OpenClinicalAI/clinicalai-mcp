@@ -1,4 +1,4 @@
-# clinical-mcp deployment policy — covered_entity (cloud foundation backend)
+# clinicalai-mcp deployment policy — covered_entity (cloud foundation backend)
 #
 # Template for a hospital / covered-entity deployment that has negotiated
 # BAA + Zero Data Retention (ZDR) with a cloud foundation-model provider
@@ -16,12 +16,12 @@
 # If you do not have BOTH, use examples/policies/covered_entity_local.yaml
 # instead (Ollama-compatible local model — PHI never leaves the deployment).
 #
-# Selecting it: set CLINICAL_MCP_POLICY_FILE=/etc/clinical-mcp/policy.yaml
+# Selecting it: set CLINICALAI_MCP_POLICY_FILE=/etc/clinicalai-mcp/policy.yaml
 #
 # Fail-loud rules that apply here (the server refuses to start otherwise):
 #   - logging.audit_sink MUST be non-null.
 #   - cache.persist_sensitive_inputs: true REQUIRES cache.encrypted_at_rest: true
-#     AND the CLINICAL_CACHE_ENCRYPTION_KEY env var to be set.
+#     AND the CLINICALAI_MCP_CACHE_ENCRYPTION_KEY env var to be set.
 #   - All env vars referenced by this file MUST resolve at startup.
 deployment_type: covered_entity
 

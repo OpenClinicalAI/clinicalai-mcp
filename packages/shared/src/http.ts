@@ -9,7 +9,7 @@
 
 import { ClinicalMcpError } from "./results.js";
 
-const USER_AGENT = "clinical-mcp/0.1 (+https://github.com/kswanjitsu/OpenClinicalAI)";
+const USER_AGENT = "clinicalai-mcp/0.1 (+https://github.com/OpenClinicalAI/clinicalai-mcp)";
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 export interface UpstreamRequest {

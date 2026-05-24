@@ -1,4 +1,4 @@
-# clinical-mcp deployment policy — covered_entity (local foundation backend)
+# clinicalai-mcp deployment policy — covered_entity (local foundation backend)
 #
 # Template for a hospital / covered-entity deployment that runs the
 # foundation-model PHI redactor LOCALLY (via an Ollama-compatible endpoint),
@@ -14,12 +14,12 @@
 # Recall scales with model size — small (≤8B) models materially underperform
 # on the redaction long tail. See ARCHITECTURE.md §3.5.4 for the F1 framing.
 #
-# Selecting it: set CLINICAL_MCP_POLICY_FILE=/etc/clinical-mcp/policy.yaml
+# Selecting it: set CLINICALAI_MCP_POLICY_FILE=/etc/clinicalai-mcp/policy.yaml
 #
 # Fail-loud rules that apply here (the server refuses to start otherwise):
 #   - logging.audit_sink MUST be non-null.
 #   - cache.persist_sensitive_inputs: true REQUIRES cache.encrypted_at_rest: true
-#     AND the CLINICAL_CACHE_ENCRYPTION_KEY env var to be set.
+#     AND the CLINICALAI_MCP_CACHE_ENCRYPTION_KEY env var to be set.
 #   - All env vars referenced by this file MUST resolve at startup.
 deployment_type: covered_entity
 

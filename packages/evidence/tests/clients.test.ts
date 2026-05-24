@@ -1,14 +1,20 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  AHRQ_LICENSE_WARNING,
   articleFromMedline,
   buildPubMedTerm,
   efetchArticle,
   elinkSimilar,
   esearch,
   esummary,
+  getRecommendation,
   getTrial,
+  listByGrade,
+  loadSnapshot,
   parseMedline,
+  searchSnapshot,
   searchTrials,
+  snapshotProvenanceWarning,
 } from "../src/index.js";
 import { stubFetchRoutes } from "./helpers.js";
 
@@ -192,5 +198,33 @@ describe("ClinicalTrials.gov client", () => {
     expect(trial?.brief_summary).toBe("Summary text.");
     expect(trial?.minimum_age).toBe("18 Years");
     expect(trial?.interventions?.[0]?.name).toBe("metformin");
+  });
+});
+
+describe("USPSTF snapshot loader", () => {
+  it("loads the bundled snapshot with the expected version metadata", () => {
+    const snap = loadSnapshot();
+    expect(snap.snapshot_version).toBe("2026-01");
+    expect(snap.recommendations.length).toBeGreaterThan(0);
+  });
+
+  it("searchSnapshot is a case-insensitive substring across title / topic / population / text", () => {
+    expect(searchSnapshot("aspirin").length).toBeGreaterThan(0);
+    expect(searchSnapshot("HYPERTENSION").length).toBeGreaterThan(0);
+  });
+
+  it("listByGrade filters to that letter", () => {
+    const a = listByGrade("A");
+    expect(a.every((r) => r.grade === "A")).toBe(true);
+  });
+
+  it("getRecommendation returns a known ID and undefined for unknown", () => {
+    expect(getRecommendation("hypertension-screening-adults")?.grade).toBe("A");
+    expect(getRecommendation("bogus-id")).toBeUndefined();
+  });
+
+  it("exports the verbatim AHRQ license warning and a snapshot provenance line", () => {
+    expect(AHRQ_LICENSE_WARNING).toContain("AHRQ");
+    expect(snapshotProvenanceWarning()).toContain("2026-01");
   });
 });

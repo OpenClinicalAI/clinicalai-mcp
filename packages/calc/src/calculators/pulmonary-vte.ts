@@ -2,7 +2,7 @@
  * Pulmonology / VTE calculators (ARCHITECTURE.md §5.3).
  */
 
-import { formulaSource } from "@clinical-mcp/shared";
+import { formulaSource } from "@openclinicalai/shared";
 import { z } from "zod";
 import { type CalculatorDef, defineCalculator, sumBreakdown } from "../framework.js";
 

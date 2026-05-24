@@ -1,6 +1,6 @@
-# clinical-mcp eval-harness
+# clinicalai-mcp eval-harness
 
-A thin Anthropic-SDK agent that drives the clinical-mcp suite, intended for
+A thin Anthropic-SDK agent that drives the clinicalai-mcp suite, intended for
 ARCHITECTURE.md §9 item 2 ("eval harness") and §9 item 3 / §11 item 8
 (clinician validation). It spawns one MCP server as a stdio subprocess,
 converts its tool list into Anthropic tool definitions, and runs Claude through
@@ -22,21 +22,21 @@ tiers light up accordingly.
 
 ```sh
 # 1) List what a server exposes (no API key needed)
-corepack pnpm --filter @clinical-mcp/eval-harness start -- \
+corepack pnpm --filter @openclinicalai/eval-harness start -- \
   --server calc --list-tools
 
 # 2) Call one tool directly with raw JSON args (no API key needed)
-corepack pnpm --filter @clinical-mcp/eval-harness start -- \
+corepack pnpm --filter @openclinicalai/eval-harness start -- \
   --server calc --tool calc_chads_vasc \
   --args '{"age_y":76,"sex":"F","congestive_heart_failure":false,"hypertension":true,"diabetes":true,"stroke_tia_thromboembolism":true,"vascular_disease":false}'
 
 # 3) Run the agent loop on a clinical question (uses ANTHROPIC_API_KEY)
-corepack pnpm --filter @clinical-mcp/eval-harness start -- \
+corepack pnpm --filter @openclinicalai/eval-harness start -- \
   --server calc \
   --question "CHA2DS2-VASc for a 76yo woman with HTN, diabetes, and prior stroke?"
 
 # 4) Sweep all bundled questions for one server
-corepack pnpm --filter @clinical-mcp/eval-harness start -- \
+corepack pnpm --filter @openclinicalai/eval-harness start -- \
   --server evidence --prompt-set prompts/clinical-cases.json
 ```
 

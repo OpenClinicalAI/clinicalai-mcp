@@ -10,7 +10,7 @@
  *   - content/.../CUI/<cui>/atoms — list atoms across requested vocabularies
  */
 
-import { getUpstreamJson } from "@clinical-mcp/shared";
+import { getUpstreamJson } from "@openclinicalai/shared";
 import type { CodeMatch, CodeRecord } from "../types.js";
 
 const UMLS_BASE = "https://uts-ws.nlm.nih.gov/rest";

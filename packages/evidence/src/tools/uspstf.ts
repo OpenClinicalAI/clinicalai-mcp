@@ -1,5 +1,5 @@
 /**
- * USPSTF tools, served from the bundled snapshot (ARCHITECTURE.md §5.4).
+ * USPSTF tools, served from the bundled snapshot (ARCHITECTURE.md §5.2).
  *
  * Every result includes a warnings entry that surfaces the AHRQ license clause
  * verbatim — USPSTF content is not pure public domain, and downstream consumers
@@ -12,7 +12,7 @@ import {
   type ToolResult,
   defineTool,
   makeResult,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 import { z } from "zod";
 import {
   AHRQ_LICENSE_WARNING,

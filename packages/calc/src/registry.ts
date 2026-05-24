@@ -1,5 +1,5 @@
 /**
- * The full calculator registry for `@clinical-mcp/calc`.
+ * The full calculator registry for `@openclinicalai/calc`.
  */
 
 import { cardiologyCalculators } from "./calculators/cardiology.js";

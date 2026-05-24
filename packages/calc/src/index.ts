@@ -1,8 +1,8 @@
 /**
- * @clinical-mcp/calc — public API.
+ * @openclinicalai/calc — public API.
  *
  * Pure-compute clinical calculators (ARCHITECTURE.md §5.3). The server itself is
- * launched via the `clinical-mcp-calc` bin (see `cli.ts`).
+ * launched via the `clinicalai-mcp-calc` bin (see `cli.ts`).
  */
 
 export { cardiologyCalculators } from "./calculators/cardiology.js";

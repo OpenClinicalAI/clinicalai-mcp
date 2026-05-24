@@ -3,9 +3,9 @@ import { type RedactionSpan, createClinicalMcpServer, metaTools } from "../src/i
 
 function context() {
   return createClinicalMcpServer({
-    name: "@clinical-mcp/test",
+    name: "@openclinicalai/test",
     version: "0.1.0",
-    env: { CLINICAL_CACHE_URL: "none" },
+    env: { CLINICALAI_MCP_CACHE_URL: "none" },
   }).context;
 }
 

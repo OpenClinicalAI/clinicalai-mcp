@@ -1,5 +1,5 @@
 /**
- * Domain shapes for `@clinical-mcp/evidence` (ARCHITECTURE.md §5.2).
+ * Domain shapes for `@openclinicalai/evidence` (ARCHITECTURE.md §5.2).
  */
 
 /** Flat citation summary for a PubMed article. */
@@ -87,4 +87,37 @@ export interface TreatmentComparison {
   systematic_reviews: ArticleSummary[];
   comparative_articles: ArticleSummary[];
   head_to_head_count: number;
+}
+
+/* -------------------------------------------------------------------------- */
+/* USPSTF — evidence-derived preventive-care guidelines (snapshot-first).      */
+/* -------------------------------------------------------------------------- */
+
+/** USPSTF preventive-care recommendation grade. */
+export type UspstfGrade = "A" | "B" | "C" | "D" | "I";
+
+/** A USPSTF recommendation in summary form (list endpoints). */
+export interface RecommendationSummary {
+  id: string;
+  title: string;
+  topic: string;
+  grade: UspstfGrade;
+  population?: string;
+  topic_url?: string;
+  date_issued?: string;
+}
+
+/** A full USPSTF recommendation. */
+export interface Recommendation extends RecommendationSummary {
+  specific_recommendation: string;
+}
+
+/** Snapshot wrapper for the bundled USPSTF JSON. */
+export interface UspstfSnapshot {
+  snapshot_version: string;
+  snapshot_date: string;
+  source: string;
+  source_url?: string;
+  license_notice?: string;
+  recommendations: Recommendation[];
 }

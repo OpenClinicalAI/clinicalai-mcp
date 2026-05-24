@@ -1,4 +1,4 @@
-# Clinical MCP — Architecture
+# OpenClinicalAI `clinicalai-mcp` — Architecture
 
 **Status:** scoping → ready to start v0.1
 **Owner:** Karl
@@ -32,6 +32,14 @@ An open-source suite of MCP (Model Context Protocol) servers that expose free, p
 
 Each server exposes multiple tools (MCPs are not one-tool-per-server; the protocol just has a server advertise a flat tool list). Servers are sliced by domain so that tools which naturally chain together share types, identifiers, and composite operations.
 
+### Naming and structure
+
+- **Umbrella project / GitHub org:** **OpenClinicalAI** (`github.com/openclinicalai`). The umbrella covers this MCP suite and any sibling repos that emerge over time (eval harness, reference agent implementation, curated datasets, etc.).
+- **This repo:** **`clinicalai-mcp`** (`github.com/openclinicalai/clinicalai-mcp`). The MCP server suite — the meat of the project at v0.1, but explicitly not the only thing the umbrella will ever ship.
+- **npm scope:** **`@openclinicalai`**. Each MCP server is its own package under that scope: `@openclinicalai/drugs`, `@openclinicalai/evidence`, `@openclinicalai/calc`, `@openclinicalai/terminologies`, plus `@openclinicalai/shared` for the common layer.
+- **Environment variable prefix:** `CLINICALAI_MCP_*` for configuration scoped to this suite (e.g., `CLINICALAI_MCP_POLICY`, `CLINICALAI_MCP_CACHE_URL`). Future sibling products under the umbrella would use their own prefixes.
+- **Local cache dir:** `~/.clinicalai-mcp/` by default.
+
 ### Design priorities
 
 1. **Citation-first.** Every clinical claim returned by any tool carries a stable, linkable source. This is what makes the difference between an agent that sounds confident and an agent a clinician can verify.
@@ -48,10 +56,10 @@ Each server exposes multiple tools (MCPs are not one-tool-per-server; the protoc
 
 | Server | Bundles | Why it's grouped |
 |---|---|---|
-| `@clinical-mcp/drugs` | openFDA, DailyMed, RxNorm | All three cross-reference via RxCUI; composite operations are natural |
-| `@clinical-mcp/evidence` | PubMed (eutils), ClinicalTrials.gov | Same query patterns, literature/study lookup |
-| `@clinical-mcp/calc` | Pure-compute clinical calculators | No external API, no rate limits, no licensing — distributable as a static package |
-| `@clinical-mcp/terminologies` | NLM Clinical Tables (ICD-10-CM, LOINC), USPSTF, (UMLS at licensed tier) | Code/recommendation lookup with shared query patterns |
+| `@openclinicalai/drugs` | openFDA, DailyMed, RxNorm | All three cross-reference via RxCUI; composite operations are natural |
+| `@openclinicalai/evidence` | PubMed (eutils), ClinicalTrials.gov, USPSTF (bundled snapshot) | Same query patterns, literature/study/guideline lookup |
+| `@openclinicalai/calc` | Pure-compute clinical calculators | No external API, no rate limits, no licensing — distributable as a static package |
+| `@openclinicalai/terminologies` | NLM Clinical Tables (ICD-10-CM, LOINC), (UMLS at licensed tier) | Code lookup with shared query patterns |
 
 **Grouping principle:** tools that chain together (e.g. RxCUI → label → adverse events) belong in the same server so they can share type definitions and offer composite tools. Tools that don't chain shouldn't be coupled.
 
@@ -178,7 +186,7 @@ This is project-wide and not negotiable per-MCP — consistency is the value.
 |---|---|---|
 | `OPENFDA_API_KEY` | stays `"free"` (just raises rate limit) | Higher openFDA quotas |
 | `NCBI_API_KEY` | stays `"free"` (just raises rate limit) | Higher PubMed eutils quotas (3 → 10 req/sec) |
-| `DRUGBANK_API_KEY` | `"licensed-drugbank"` | Enriched drug records, clinician-grade DDI (commercial license only — DrugBank discontinued academic licensing) |
+| `DRUGBANK_API_KEY` | `"licensed-drugbank"` | Enriched drug records, clinician-grade DDI |
 | `LEXICOMP_API_KEY` | `"licensed-lexicomp"` | DDI, dosing, monographs |
 | `MICROMEDEX_API_KEY` | `"licensed-micromedex"` | DDI, IV compatibility |
 | `UMLS_API_KEY` | `"licensed-umls"` | SNOMED, cross-vocab concept mapping, ICD-10-CM enrichment |
@@ -214,7 +222,7 @@ Every tool accepts `phi_mode?: "safe" | "sensitive"`. The default is `safe`, but
 
 #### 3.5.3 Deployment policy
 
-Selected via `CLINICAL_MCP_POLICY` (named preset) or `CLINICAL_MCP_POLICY_FILE` (YAML path). The policy is read once at startup and immutable for the process lifetime.
+Selected via `CLINICALAI_MCP_POLICY` (named preset) or `CLINICALAI_MCP_POLICY_FILE` (YAML path). The policy is read once at startup and immutable for the process lifetime.
 
 **`personal` (default):** conservative; assumes no infrastructure-level protections.
 - Cache writes blocked entirely when `phi_mode: "sensitive"`.
@@ -223,7 +231,7 @@ Selected via `CLINICAL_MCP_POLICY` (named preset) or `CLINICAL_MCP_POLICY_FILE` 
 - Suitable for: laptops, students, casual users, anyone running this outside a covered environment.
 
 **`covered_entity`:** assumes the org has BAA-covered infrastructure, FDE, audit pipeline, retention policy.
-- Cache writes permitted in `sensitive` mode (hashed-keyed, encrypted-at-rest if a passphrase is configured via `CLINICAL_CACHE_ENCRYPTION_KEY`).
+- Cache writes permitted in `sensitive` mode (hashed-keyed, encrypted-at-rest if a passphrase is configured via `CLINICALAI_MCP_CACHE_ENCRYPTION_KEY`).
 - Audit events ship to a configured sink (`syslog://`, `file://`, or `https://` webhook).
 - PHI-pattern warnings in `safe` mode can be downgraded to silent (covered entities often don't need the nudge).
 - Suitable for: hospital deployments where IT has reviewed the policy YAML and configured surrounding controls.
@@ -235,7 +243,7 @@ Selected via `CLINICAL_MCP_POLICY` (named preset) or `CLINICAL_MCP_POLICY_FILE` 
 Policy YAML schema (lives in `packages/shared/policy-schema.json`, validated at startup):
 
 ```yaml
-# clinical-mcp deployment policy
+# clinicalai-mcp deployment policy
 deployment_type: covered_entity   # personal | covered_entity | research_deid
 cache:
   persist_sensitive_inputs: true  # default depends on deployment_type
@@ -253,7 +261,7 @@ A `describe_policy()` meta tool (mounted on every server via the shared package)
 **Fail-loud validation.** The policy YAML is validated at startup. Bad combinations cause the server to refuse to start with a clear error pointing at the offending field. The rules:
 
 - If `deployment_type: covered_entity`, then `logging.audit_sink` MUST be non-null. (A covered-entity deployment without an audit sink is a misconfiguration, not a soft default.)
-- If `cache.persist_sensitive_inputs: true`, then `cache.encrypted_at_rest: true` AND `CLINICAL_CACHE_ENCRYPTION_KEY` env var MUST be set.
+- If `cache.persist_sensitive_inputs: true`, then `cache.encrypted_at_rest: true` AND `CLINICALAI_MCP_CACHE_ENCRYPTION_KEY` env var MUST be set.
 - `upstream_egress.phi_policy` MUST equal `deny`. Any other value rejects the policy. (The universal floor is enforced as a config-level invariant too, so a misconfigured YAML can't accidentally relax it.)
 - All env vars referenced by the policy MUST resolve at startup. Unresolved references error out rather than silently defaulting.
 - `deployment_type: research_deid` with `phi_redaction.backend: foundation` warns but does not error — de-identified data shouldn't need redaction but it's not wrong.
@@ -298,14 +306,6 @@ interface RedactionConfig {
 **`regex` (default for `personal` deployment):** deterministic patterns for names (limited recall — surname-only patterns plus a curated common-name list), MRN-shaped numbers, dates, addresses, phones, emails, SSN, insurance IDs. Fast, no network, no model dependency. Honest about its limitations — emits a `warnings` entry noting that name-redaction recall is the weak point.
 
 **`foundation` (recommended for `covered_entity` deployment):** sends each free-text input to a configured foundation model with the verbatim HIPAA Safe Harbor §164.514(b)(2)(i) identifier list in the system prompt. The model returns redacted text plus a structured spans list. Costs API calls and adds latency, but materially better recall on the long tail (typo'd names, embedded dates, geographic identifiers smaller than state). Local-model option supported via Ollama-compatible endpoint.
-
-**Compliance reality for the `foundation` backend.** Sending PHI to a cloud foundation model is itself a HIPAA disclosure. To use Anthropic, OpenAI, or any other cloud provider for redaction under a `covered_entity` policy the deployer MUST have *both*: (1) a signed Business Associate Agreement (BAA) with the provider, and (2) a non-retention / Zero Data Retention (ZDR) agreement contractually preventing the provider from logging, retaining, or training on submitted PHI. Anthropic offers both via Claude for Enterprise; OpenAI offers both via the Enterprise / API ZDR program. The MCP does not — and cannot — verify these contracts are in place; that attestation lives in the policy YAML (`phi_redaction.compliance_attested_by`) and is the deployer's responsibility. Without both contracts, do **not** point `provider: anthropic` (or `openai`) at real PHI. Realistic options when a BAA is not available:
-
-- **`provider: local`** via an Ollama-compatible endpoint, pointing at a strong open-weights model (Llama 3.1 70B or larger, or a clinical-domain fine-tune). PHI never leaves the deployment. Hardware cost is real — a Mac mini Pro cluster works at the small-team scale; a single workstation with a capable GPU is the most common solo-clinician path; an institutional inference server is the covered-entity scale answer.
-- **Fine-tuned smaller open-weights model.** Engineering- and labeling-heavy, but produces a smaller, faster, locally-deployable redactor calibrated to the deployment's actual content profile.
-- **Cap to the `personal` policy** with the default `regex` backend and `phi_pattern_warnings: true`. Accept the recall limitation, accept that the deployment should not be touching real covered-entity PHI in the first place.
-
-**Why the recall gap matters enough to drive the default.** Informal numbers from prior work on out-of-domain clinical text (formal benchmark numbers will land with the comparative-evaluation harness): regex / pattern-only stacks collapse on free-text clinical narrative; smaller NER models (OpenMed / BioBERT-family) reach roughly F1 ≈ 0.1; larger NER and older NLP stacks reach roughly F1 ≈ 0.3–0.5; frontier foundation models (Claude / GPT-4-class) with the Safe Harbor prompt and no further tuning reach roughly F1 ≈ 0.75–0.9+. The gap between "smaller models on out-of-domain content" and "frontier model with the regulatory prompt" is large enough that it dominates the recommendation, even at the cost of compliance overhead. We ship every backend so deployers can confirm this on their own corpus rather than trust the framing.
 
 **`presidio` and `openmed`:** wrappers that talk to a sidecar service over HTTP. The MCP doesn't bundle the Python runtime — users stand up their own Presidio/OpenMed container and point the policy at it. Useful for shops that already have one of these in their stack.
 
@@ -358,7 +358,7 @@ Users who want metrics for their *own* deployment configure the `logging.audit_s
 
 ### 4.1 Default backend: SQLite (WAL)
 
-- One SQLite file per MCP server, stored under `~/.clinical-mcp/<server>/cache.db` by default (overridable via `CLINICAL_CACHE_DIR`).
+- One SQLite file per MCP server, stored under `~/.clinicalai-mcp/<server>/cache.db` by default (overridable via `CLINICALAI_MCP_CACHE_DIR`).
 - WAL mode enabled at open; thousands of reads/sec, single-writer serialization is not a concern at the per-user process scale.
 - Schema:
 
@@ -385,9 +385,9 @@ CREATE INDEX idx_cache_inserted ON cache(inserted_at);
 The cache module exposes a `Cache` interface (`get`, `set`, `delete`, `purgeOlderThan`) implemented by:
 
 - `SqliteCache` (default)
-- `RedisCache` (activated when `CLINICAL_CACHE_URL=redis://...`)
-- `PostgresCache` (activated when `CLINICAL_CACHE_URL=postgres://...`)
-- `NoopCache` (activated when `CLINICAL_CACHE_URL=none`, useful for testing/eval)
+- `RedisCache` (activated when `CLINICALAI_MCP_CACHE_URL=redis://...`)
+- `PostgresCache` (activated when `CLINICALAI_MCP_CACHE_URL=postgres://...`)
+- `NoopCache` (activated when `CLINICALAI_MCP_CACHE_URL=none`, useful for testing/eval)
 
 Cache is **smoothing, not source-of-truth.** If it disappears, the MCP still works, just slower. No tool reads from the cache without a freshness check against TTL.
 
@@ -459,7 +459,7 @@ evaluate_redaction(args: {
 
 `redact_phi` is exposed as a tool (not just used internally in `sensitive` mode) so an agent processing a patient chart can pre-redact before constructing search queries — the redaction logic stays shared between the per-call sensitive-mode pipeline and explicit caller use. `compare_redaction_backends` and `evaluate_redaction` exist so users can empirically select the right backend for their content rather than guess — see §3.5.4.
 
-### 5.1 `@clinical-mcp/drugs`
+### 5.1 `@openclinicalai/drugs`
 
 ```ts
 // Atomic lookups
@@ -483,10 +483,10 @@ hepatic_dose_adjustment(rxcui: string, child_pugh?: "A"|"B"|"C"): ToolResult<Dos
 
 Tier behavior for `get_drug_interactions`:
 
-- **Free tier:** the FDA label's "Drug Interactions" section is surfaced per queried RxCUI under `data.label_interactions[]` (prose, not pairwise). This is the only authoritative free interaction surface left — NLM retired the public RxNav DDI API in January 2024, and DrugBank discontinued academic licensing for the Clinical API, so neither is available to non-paying users any longer. The result includes a `warnings` entry explaining the prose-vs-pairwise tradeoff and which env vars unlock structured DDI.
-- **Licensed tiers (DrugBank / Lexicomp / Micromedex):** returns structured interaction records with severity, mechanism, and clinical management. The DrugBank client is preserved for paying customers, but Lexicomp and Micromedex are the realistic licensed targets for new deployments since they still serve academic institutions.
+- Free tier: returns whatever the now-deprecated NDF-RT and RxNorm relationship data still surface, with a `warnings` entry stating the limitation and the env vars that would unlock clinician-grade data.
+- DrugBank/Lexicomp/Micromedex tiers: returns structured interaction records with severity, mechanism, and clinical management.
 
-### 5.2 `@clinical-mcp/evidence`
+### 5.2 `@openclinicalai/evidence`
 
 ```ts
 // Atomic lookups
@@ -538,9 +538,27 @@ find_recruiting_trials_for(args: {
   intervention_class?: string;
 }): ToolResult<TrialSummary[]>
   // Recruiting-only, location-filtered, eligibility-matched where the trial publishes structured criteria.
+
+// USPSTF preventive-care recommendations — see "USPSTF data ingestion" below for sourcing details.
+// Lives in @openclinicalai/evidence because USPSTF recommendations are evidence-derived clinical
+// guidelines (systematic-review-driven preventive-care recommendations with grades A/B/C/D/I), not
+// a code vocabulary. They belong next to PubMed and ClinicalTrials.gov, not next to ICD-10/LOINC.
+search_uspstf(query: string): ToolResult<RecommendationSummary[]>
+get_uspstf_recommendation(id: string): ToolResult<Recommendation>
+list_uspstf_by_grade(grade: "A"|"B"|"C"|"D"|"I"): ToolResult<RecommendationSummary[]>
 ```
 
-### 5.3 `@clinical-mcp/calc`
+**USPSTF data ingestion.** USPSTF/AHRQ runs a documented but **token-gated** API (the Prevention TaskForce API, formerly ePSS). Tokens are obtained by emailing `uspstfpda@ahrq.gov` — not anonymous, not self-serve. AHRQ explicitly recommends downloading and caching the full dataset locally; weekly refresh is sufficient.
+
+The implementation is **hybrid snapshot-first, optional live mode**:
+
+- Bundle a versioned snapshot (`packages/evidence/data/uspstf-YYYY-MM.json`) inside the package. Users get USPSTF coverage out of the box with no token, no API key, no network dependency for these lookups.
+- Refresh monthly via a scripted pull from the live API (one maintainer holds the token; the snapshot is the redistributable artifact).
+- Offer an optional `USPSTF_API_TOKEN` env var that activates live mode — when set, queries hit the live API and the snapshot becomes fallback.
+
+**License caveat that must be surfaced.** USPSTF content is **not pure public domain.** AHRQ permits verbatim redistribution with attribution, but explicitly prohibits modifications to the text, reproduction for a fee, sale, or incorporation into a profit-making venture without written AHRQ permission. Every USPSTF tool's result includes a `warnings` entry that quotes the AHRQ disclaimer and the no-commercial-resale clause, and the README's "Compliance Notes" section calls this out so downstream consumers (especially commercial vendors building on this) are on notice. This is the kind of thing that gets people in trouble when it's a footnote; we treat it as a first-class output field.
+
+### 5.3 `@openclinicalai/calc`
 
 Each calculator is its own tool with a strictly typed schema. The set below is the v0.1 target — high-traffic calculators, formulas re-implemented from primary literature (cite the original paper in `sources`).
 
@@ -591,7 +609,7 @@ calc_pe_workup(args: PeWorkupInputs): ToolResult<PeWorkupResult>
 
 `CalcResult` includes the numeric output, the interpretive band (e.g. "low risk / intermediate / high"), the inputs as received (for auditing), and the original citation in `sources` (primary literature + OSS reference implementation where applicable).
 
-### 5.4 `@clinical-mcp/terminologies`
+### 5.4 `@openclinicalai/terminologies`
 
 ```ts
 // ICD-10-CM (NLM Clinical Tables, free)
@@ -609,24 +627,12 @@ lookup_snomed(code: string): ToolResult<CodeRecord>                             
 // Cross-vocab (UMLS, licensed)
 lookup_concept(term: string, target_vocabs?: string[]): ToolResult<ConceptMap>     // LICENSE_REQUIRED on free tier
 
-// USPSTF recommendations — see "USPSTF data ingestion" below for sourcing details
-search_uspstf(query: string): ToolResult<RecommendationSummary[]>
-get_uspstf_recommendation(id: string): ToolResult<Recommendation>
-list_uspstf_by_grade(grade: "A"|"B"|"C"|"D"|"I"): ToolResult<RecommendationSummary[]>
-
 // Composite / fan-out
 map_concept_across_vocabs(term: string): ToolResult<ConceptCrossMap>               // ICD-10 + LOINC + SNOMED (if licensed) + RxNorm
 code_workup(term: string): ToolResult<CodeWorkup>                                  // ICD-10 candidates with hierarchical context, siblings, "consider also" set
 ```
 
-**USPSTF data ingestion.** USPSTF/AHRQ runs a documented but **token-gated** API (the Prevention TaskForce API, formerly ePSS). Tokens are obtained by emailing `uspstfpda@ahrq.gov` — not anonymous, not self-serve. AHRQ explicitly recommends downloading and caching the full dataset locally; weekly refresh is sufficient.
-
-The plan for v0.1: **hybrid, snapshot-first.**
-- Bundle a versioned snapshot (`packages/terminologies/data/uspstf-YYYY-MM.json`) inside the package. Users get USPSTF coverage out of the box with no token, no API key, no network dependency for these lookups.
-- Refresh the snapshot in CI on a monthly schedule; releases tag the data version.
-- Offer an optional `USPSTF_API_TOKEN` env var that activates live mode — when set, queries hit the live API and the snapshot becomes fallback.
-
-**License caveat that must be surfaced.** USPSTF content is **not pure public domain.** AHRQ permits verbatim redistribution with attribution, but explicitly prohibits modifications to the text, reproduction for a fee, sale, or incorporation into a profit-making venture without written AHRQ permission. Every USPSTF tool's result includes a `warnings` entry that quotes the AHRQ disclaimer and the no-commercial-resale clause, and the README's "Compliance Notes" section calls this out so downstream consumers (especially commercial vendors building on this) are on notice. This is the kind of thing that gets people in trouble when it's a footnote; we treat it as a first-class output field.
+**Note on USPSTF placement.** USPSTF preventive-care recommendations were originally part of `@openclinicalai/terminologies` (snapshot-style lookup pattern matched the ICD-10/LOINC implementation). In v0.1 they moved to `@openclinicalai/evidence` because USPSTF recommendations are evidence-derived clinical guidelines (systematic-review-driven, graded A/B/C/D/I), not a code vocabulary — and the natural cross-tool workflows ("find the RCTs cited by this USPSTF recommendation") chain through `search_pubmed`, not through ICD-10. See §5.2 for the current USPSTF tool surface and the AHRQ license-clause requirement.
 
 ---
 
@@ -635,7 +641,7 @@ The plan for v0.1: **hybrid, snapshot-first.**
 Single GitHub repo, pnpm workspaces.
 
 ```
-clinical-mcp/
+clinicalai-mcp/
 ├── package.json                    # workspace root
 ├── pnpm-workspace.yaml
 ├── tsconfig.base.json
@@ -647,7 +653,7 @@ clinical-mcp/
 │       ├── ci.yml                  # lint, type-check, test, phi-lint
 │       └── release.yml             # changesets-based independent semver release
 ├── packages/
-│   ├── shared/                     # @clinical-mcp/shared
+│   ├── shared/                     # @openclinicalai/shared
 │   │   ├── src/
 │   │   │   ├── types.ts            # ToolResult, Source, ToolError, DataTier, PhiMode
 │   │   │   ├── cache/              # Cache interface + SqliteCache, RedisCache, ...
@@ -658,10 +664,10 @@ clinical-mcp/
 │   │   │   ├── phi-lint.ts         # CI rule for schema-level PHI invariants
 │   │   │   └── server.ts           # MCP server scaffold w/ describe_capabilities + describe_policy + redact_phi
 │   │   └── package.json
-│   ├── drugs/                      # @clinical-mcp/drugs
-│   ├── evidence/                   # @clinical-mcp/evidence
-│   ├── calc/                       # @clinical-mcp/calc
-│   └── terminologies/              # @clinical-mcp/terminologies
+│   ├── drugs/                      # @openclinicalai/drugs
+│   ├── evidence/                   # @openclinicalai/evidence
+│   ├── calc/                       # @openclinicalai/calc
+│   └── terminologies/              # @openclinicalai/terminologies
 └── examples/
     ├── claude-desktop-config.json  # ready-to-paste mcpServers block (personal mode)
     ├── claude-code-config.md
@@ -672,7 +678,7 @@ clinical-mcp/
     └── eval-harness/               # offline eval with cache: "only"
 ```
 
-Each package's `package.json` declares a `bin` so `npx @clinical-mcp/drugs` runs the server directly. Each ships a CommonJS bundle so older Node versions in hospital environments don't break.
+Each package's `package.json` declares a `bin` so `npx @openclinicalai/drugs` runs the server directly. Each ships a CommonJS bundle so older Node versions in hospital environments don't break.
 
 ---
 
@@ -692,7 +698,7 @@ Each package's `package.json` declares a `bin` so `npx @clinical-mcp/drugs` runs
 
 ## 8. Distribution
 
-- **npm** from day one. Each package published under the `@clinical-mcp` scope.
+- **npm** from day one. Each package published under the `@openclinicalai` scope.
 - **MCP registries:** publish to Anthropic's MCP registry and Smithery at v0.1. Discovery is the limiting factor for community adoption right now; being early is worth more than being polished.
 - **Docker images:** not v0.1. Add later if hospital IT asks.
 - **No PyPI:** single-runtime decision. If demand emerges, a Python client could be added as a thin wrapper that calls the Node servers over stdio.
@@ -706,7 +712,7 @@ Target install in a Claude Desktop config for the **default personal** deploymen
   "mcpServers": {
     "clinical-drugs": {
       "command": "npx",
-      "args": ["-y", "@clinical-mcp/drugs"],
+      "args": ["-y", "@openclinicalai/drugs"],
       "env": {
         "OPENFDA_API_KEY": "<optional>",
         "DRUGBANK_API_KEY": "<optional>"
@@ -714,16 +720,16 @@ Target install in a Claude Desktop config for the **default personal** deploymen
     },
     "clinical-evidence": {
       "command": "npx",
-      "args": ["-y", "@clinical-mcp/evidence"],
+      "args": ["-y", "@openclinicalai/evidence"],
       "env": { "NCBI_API_KEY": "<optional>" }
     },
     "clinical-calc": {
       "command": "npx",
-      "args": ["-y", "@clinical-mcp/calc"]
+      "args": ["-y", "@openclinicalai/calc"]
     },
     "clinical-terminologies": {
       "command": "npx",
-      "args": ["-y", "@clinical-mcp/terminologies"],
+      "args": ["-y", "@openclinicalai/terminologies"],
       "env": { "UMLS_API_KEY": "<optional>" }
     }
   }
@@ -734,8 +740,8 @@ For a **covered-entity** deployment, add the policy env var or file to each serv
 
 ```json
 "env": {
-  "CLINICAL_MCP_POLICY_FILE": "/etc/clinical-mcp/policy.yaml",
-  "CLINICAL_CACHE_ENCRYPTION_KEY": "<from secrets manager>",
+  "CLINICALAI_MCP_POLICY_FILE": "/etc/clinicalai-mcp/policy.yaml",
+  "CLINICALAI_MCP_CACHE_ENCRYPTION_KEY": "<from secrets manager>",
   "NCBI_API_KEY": "<optional>"
 }
 ```
@@ -752,7 +758,7 @@ Most of the original open questions are resolved (see §10 for the audit trail).
 2. **Eval harness.** Ship a thin eval runner in `examples/eval-harness/` that runs MedMCP-Calc + a fixed prompt set against the servers with `cache: "only"` so contributors can validate changes deterministically. Not blocking but high-leverage.
 3. **Clinician validation pass — release gate.** Every clinical interpretive layer must be reviewed by practicing clinicians before v0.1 ships. This includes: composite-tool synthesis text (§5.1–5.4), calculator interpretive bands (the "low/moderate/high risk" language and thresholds), the Safe Harbor redaction prompt phrasing, and any tool documentation that describes clinical use. This is not a peer-review-of-formulas pass — that's MedCalc-Bench's job — it's a "does this text feel right to a clinician reading it under time pressure" pass. Karl + Adam first internal review; recruit 2–3 external academic clinicians (per the mission's stated goal of academic validation) for the formal v0.1 sign-off. Findings of "feels wrong" block the release on that surface even when math checks out.
 4. **Custom redaction backend distribution.** If a user writes a custom redaction backend, how does it get loaded? Options: local file path in the policy YAML (simple, no isolation), or as an npm package with a known export shape (better isolation, requires publishing). Recommendation: support both — file path for quick experiments, npm package for production.
-5. **Snapshot refresh cadence for USPSTF.** Monthly is sufficient given USPSTF update frequency, but worth deciding whether the snapshot tags trigger a patch release of `@clinical-mcp/terminologies` (gives users an automatic update path) or whether snapshots are downloaded at runtime from a CDN (avoids package churn but adds network dependency).
+5. **Snapshot refresh cadence for USPSTF.** Monthly is sufficient given USPSTF update frequency, but worth deciding whether the snapshot tags trigger a patch release of `@openclinicalai/evidence` (gives users an automatic update path) or whether snapshots are downloaded at runtime from a CDN (avoids package churn but adds network dependency).
 
 ## 10. Decisions resolved during scoping
 
@@ -778,11 +784,11 @@ A rough sequencing for v0.1 — not a hard plan, just an order that makes the ea
 
 1. Repo scaffold, `packages/shared`, `Cache` interface + SqliteCache, ToolResult/Source/Error/PhiMode types, policy loader + validator (fail-loud), `describe_capabilities` + `describe_policy` + `redact_phi`, CI with phi-lint + policy-validation tests.
 2. PHI redaction backends: regex first, foundation backend with Safe Harbor prompt second. `compare_redaction_backends` + `evaluate_redaction` tools.
-3. `@clinical-mcp/calc` — fastest to ship, no external deps, gives an immediate demo and validates the shared layer. Numeric validation against MedCalc-Bench in CI.
-4. `@clinical-mcp/drugs` — openFDA + RxNorm + DailyMed wrappers, free-tier interactions surfacing the FDA label's "Drug Interactions" section per RxCUI. Composite tools (`get_drug_full_profile`, `safety_summary`, `renal_dose_adjustment`).
-5. `@clinical-mcp/evidence` — PubMed eutils + ClinicalTrials.gov. Composite tools (`summarize_evidence`, `compare_treatments`).
-6. `@clinical-mcp/terminologies` — ICD-10-CM, LOINC, USPSTF snapshot-first; UMLS slot wired but inactive without key. License-clause surfacing on every USPSTF result.
-7. Licensed-tier code paths for `drugs` (DrugBank client preserved for commercial customers; academic licenses are no longer issued, so Lexicomp / Micromedex are the realistic onboarding paths for new institutional users) and `terminologies` (UMLS).
+3. `@openclinicalai/calc` — fastest to ship, no external deps, gives an immediate demo and validates the shared layer. Numeric validation against MedCalc-Bench in CI.
+4. `@openclinicalai/drugs` — openFDA + RxNorm + DailyMed wrappers, free-tier interactions with the documented warning. Composite tools (`get_drug_full_profile`, `safety_summary`, `renal_dose_adjustment`).
+5. `@openclinicalai/evidence` — PubMed eutils + ClinicalTrials.gov + USPSTF (snapshot-first, AHRQ license clause surfaced on every result). Composite tools (`summarize_evidence`, `compare_treatments`).
+6. `@openclinicalai/terminologies` — ICD-10-CM, LOINC; UMLS slot wired but inactive without key. (USPSTF moved to `@openclinicalai/evidence` in v0.1 — see §5.2.)
+7. Licensed-tier code paths for `drugs` (DrugBank first — best free-developer onboarding of the three) and `terminologies` (UMLS).
 8. **Clinician validation pass** (release gate per §9 item 3). Internal review by Karl + Adam; external academic clinician review aligned with the mission's stated benchmarking-against-OpenEvidence/Doximity goal. Block release on any interpretive surface that fails the "feels right under time pressure" pass.
 9. Publish to npm + MCP registries.
 10. Post-v0.1: begin formal comparative evaluation against OpenEvidence and Doximity's clinical AI, in collaboration with the engaged academic clinicians, targeting publishable comparative benchmarks.

@@ -6,7 +6,7 @@
  * single clinician-facing reading. Pure parallel fan-outs are left to the agent.
  */
 
-import type { Source } from "@clinical-mcp/shared";
+import type { Source } from "@openclinicalai/shared";
 import { z } from "zod";
 import { type CalcResult, type CalculatorDef, defineCalculator } from "../framework.js";
 import { cardiologyCalculators } from "./cardiology.js";

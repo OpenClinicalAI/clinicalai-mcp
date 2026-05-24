@@ -63,7 +63,7 @@ export function defineTool<TShape extends z.ZodRawShape>(def: {
 }
 
 export interface CreateServerOptions {
-  /** Package name, e.g. "@clinical-mcp/drugs". */
+  /** Package name, e.g. "@openclinicalai/drugs". */
   name: string;
   /** Package version. */
   version: string;
@@ -97,7 +97,7 @@ function toToolError(err: unknown): ToolError {
 }
 
 /**
- * Build a clinical-mcp server. Throws `PolicyValidationError`, `PhiLintError`,
+ * Build a clinicalai-mcp server. Throws `PolicyValidationError`, `PhiLintError`,
  * or `ClinicalMcpError` on a fatal misconfiguration — see {@link runClinicalMcpServer}
  * for the fail-loud entrypoint that turns those into a non-zero exit.
  */
@@ -172,19 +172,19 @@ export async function runClinicalMcpServer(opts: CreateServerOptions): Promise<v
   // configuration. Existing real env vars are preserved.
   const loadedEnv = loadDotEnv();
   if (loadedEnv) {
-    process.stderr.write(`[clinical-mcp] loaded env from ${loadedEnv}\n`);
+    process.stderr.write(`[clinicalai-mcp] loaded env from ${loadedEnv}\n`);
   }
 
   let built: ClinicalMcpServer;
   try {
     built = createClinicalMcpServer(opts);
   } catch (err) {
-    process.stderr.write(`\n[clinical-mcp] ${opts.name} failed to start:\n`);
+    process.stderr.write(`\n[clinicalai-mcp] ${opts.name} failed to start:\n`);
     process.stderr.write(`${err instanceof Error ? err.message : String(err)}\n\n`);
     process.exit(1);
     return;
   }
   // Non-fatal policy warnings go to stderr only — never off the machine (§3.6).
-  for (const w of built.warnings) process.stderr.write(`[clinical-mcp] warning: ${w}\n`);
+  for (const w of built.warnings) process.stderr.write(`[clinicalai-mcp] warning: ${w}\n`);
   await built.start();
 }

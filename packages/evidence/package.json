@@ -1,14 +1,14 @@
 {
-  "name": "@clinical-mcp/evidence",
+  "name": "@openclinicalai/evidence",
   "version": "0.1.0",
-  "description": "PubMed + ClinicalTrials.gov evidence-search MCP server for the clinical-mcp suite.",
+  "description": "PubMed + ClinicalTrials.gov + USPSTF evidence-search MCP server for the clinicalai-mcp suite.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "clinical-mcp-evidence": "./dist/cli.js"
+    "clinicalai-mcp-evidence": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -17,7 +17,7 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "data"],
   "engines": {
     "node": ">=20"
   },
@@ -28,7 +28,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@clinical-mcp/shared": "workspace:*",
+    "@openclinicalai/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.24.1"
   },

@@ -2,7 +2,7 @@
  * Combine the atomic and composite drug tools into one list for the server.
  */
 
-import type { ToolDef } from "@clinical-mcp/shared";
+import type { ToolDef } from "@openclinicalai/shared";
 import { atomicDrugTools } from "./tools/atomic.js";
 import { compositeDrugTools } from "./tools/composite.js";
 

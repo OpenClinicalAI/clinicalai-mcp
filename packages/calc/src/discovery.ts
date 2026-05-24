@@ -10,7 +10,7 @@ import {
   type ToolResult,
   makeResult,
   makeSource,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 import { ALL_CALCULATORS, getCalculator } from "./registry.js";
@@ -25,9 +25,9 @@ const CALCULATOR_DOMAINS = [
 
 function discoverySource() {
   return makeSource({
-    title: "clinical-mcp — ARCHITECTURE.md §5.3 (@clinical-mcp/calc tool inventory)",
-    url: "https://github.com/kswanjitsu/OpenClinicalAI/blob/main/ARCHITECTURE.md",
-    publisher: "clinical-mcp",
+    title: "clinicalai-mcp — ARCHITECTURE.md §5.3 (@openclinicalai/calc tool inventory)",
+    url: "https://github.com/OpenClinicalAI/clinicalai-mcp/blob/main/ARCHITECTURE.md",
+    publisher: "clinicalai-mcp",
   });
 }
 

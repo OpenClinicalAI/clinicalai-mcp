@@ -5,7 +5,7 @@ import { buildContext } from "./helpers.js";
 describe("evidence server", () => {
   it("builds without a phi-lint violation and mounts every tool", () => {
     const ctx = buildContext();
-    // 7 atomic + 2 composite + 5 shared meta tools = 14 total.
+    // 7 atomic + 2 composite + 3 USPSTF + 5 shared meta tools = 17 total.
     expect(ctx.toolNames.length).toBe(evidenceTools().length + 5);
     expect(ctx.toolNames).toEqual(
       expect.arrayContaining([
@@ -18,12 +18,15 @@ describe("evidence server", () => {
         "find_trials_for_condition",
         "summarize_evidence",
         "compare_treatments",
+        "search_uspstf",
+        "get_uspstf_recommendation",
+        "list_uspstf_by_grade",
         "redact_phi",
       ]),
     );
   });
 
-  it("ships 9 domain tools (7 atomic + 2 composite)", () => {
-    expect(evidenceTools().length).toBe(9);
+  it("ships 12 domain tools (7 atomic + 2 composite + 3 USPSTF)", () => {
+    expect(evidenceTools().length).toBe(12);
   });
 });

@@ -18,7 +18,7 @@ import {
   defineTool,
   makeResult,
   makeSource,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 import { z } from "zod";
 import {
   type OpenFdaLabel,
@@ -359,9 +359,9 @@ const renalDoseAdjustmentTool = defineTool({
           identifier_type: "rxcui",
         }),
         makeSource({
-          title: "clinical-mcp — renal dose guidance note (ARCHITECTURE.md §5.1)",
-          url: "https://github.com/kswanjitsu/OpenClinicalAI/blob/main/ARCHITECTURE.md",
-          publisher: "clinical-mcp",
+          title: "clinicalai-mcp — renal dose guidance note (ARCHITECTURE.md §5.1)",
+          url: "https://github.com/OpenClinicalAI/clinicalai-mcp/blob/main/ARCHITECTURE.md",
+          publisher: "clinicalai-mcp",
         }),
       ],
       tier: "free",

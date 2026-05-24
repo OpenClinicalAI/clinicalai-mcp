@@ -1,5 +1,5 @@
 /**
- * A cache that stores nothing. Activated via `CLINICAL_CACHE_URL=none`.
+ * A cache that stores nothing. Activated via `CLINICALAI_MCP_CACHE_URL=none`.
  * Useful for tests, offline eval, and reproducible demos where cache state
  * would be a confounder.
  */

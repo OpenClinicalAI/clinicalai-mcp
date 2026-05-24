@@ -7,7 +7,7 @@
  * not parse on the free tier.
  */
 
-import { getUpstreamJson } from "@clinical-mcp/shared";
+import { getUpstreamJson } from "@openclinicalai/shared";
 
 const DAILYMED_BASE = "https://dailymed.nlm.nih.gov/dailymed/services/v2";
 

@@ -7,7 +7,7 @@
  * literature the formula comes from (ARCHITECTURE.md §3.2, §5.3).
  */
 
-import { type Source, type ToolDef, type ToolResult, makeResult } from "@clinical-mcp/shared";
+import { type Source, type ToolDef, type ToolResult, makeResult } from "@openclinicalai/shared";
 import { z } from "zod";
 
 /** Domains used to group calculators for `list_calculators`. */

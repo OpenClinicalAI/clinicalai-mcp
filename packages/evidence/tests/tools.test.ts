@@ -3,6 +3,8 @@ import {
   type Article,
   type ArticleSummary,
   type EvidenceSummary,
+  type Recommendation,
+  type RecommendationSummary,
   type TreatmentComparison,
   type Trial,
   type TrialSummary,
@@ -232,5 +234,49 @@ describe("compare_treatments", () => {
     expect(data.head_to_head_count).toBe(
       data.systematic_reviews.length + data.comparative_articles.length,
     );
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* USPSTF tools (evidence-derived preventive-care guidelines, snapshot-served) */
+/* -------------------------------------------------------------------------- */
+
+describe("USPSTF tools", () => {
+  it("search_uspstf finds recommendations by free-text query", async () => {
+    const result = await tool("search_uspstf").handler({ query: "hypertension" }, buildContext());
+    const data = result.data as RecommendationSummary[];
+    expect(data.length).toBeGreaterThan(0);
+    expect(data[0]?.grade).toBe("A");
+  });
+
+  it("get_uspstf_recommendation returns the full specific_recommendation text", async () => {
+    const result = await tool("get_uspstf_recommendation").handler(
+      { id: "aspirin-cvd-prevention-older-adults" },
+      buildContext(),
+    );
+    const data = result.data as Recommendation;
+    expect(data.grade).toBe("D");
+    expect(data.specific_recommendation).toContain("aspirin");
+  });
+
+  it("get_uspstf_recommendation throws NOT_FOUND for unknown IDs", async () => {
+    await expect(
+      tool("get_uspstf_recommendation").handler({ id: "bogus" }, buildContext()),
+    ).rejects.toMatchObject({ payload: { code: "NOT_FOUND" } });
+  });
+
+  it("list_uspstf_by_grade filters by letter", async () => {
+    const result = await tool("list_uspstf_by_grade").handler({ grade: "A" }, buildContext());
+    const data = result.data as RecommendationSummary[];
+    expect(data.length).toBeGreaterThan(0);
+    expect(data.every((r) => r.grade === "A")).toBe(true);
+  });
+
+  it("every USPSTF result surfaces the AHRQ license clause as a warning", async () => {
+    for (const name of ["search_uspstf", "list_uspstf_by_grade"]) {
+      const args = name === "search_uspstf" ? { query: "screening" } : { grade: "A" as const };
+      const result = await tool(name).handler(args, buildContext());
+      expect(result.warnings?.join(" ")).toContain("AHRQ");
+    }
   });
 });

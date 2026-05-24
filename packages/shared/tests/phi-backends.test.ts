@@ -27,7 +27,7 @@ function stubFetch(body: unknown, opts: { ok?: boolean; status?: number } = {}) 
 
 /** Write a temp ESM module and return its path. */
 function tmpModule(source: string): string {
-  const dir = mkdtempSync(join(tmpdir(), "clinical-mcp-custom-"));
+  const dir = mkdtempSync(join(tmpdir(), "clinicalai-mcp-custom-"));
   tmpDirs.push(dir);
   const path = join(dir, "redactor.mjs");
   writeFileSync(path, source, "utf8");

@@ -4,7 +4,7 @@
  *   - code_workup               — top ICD-10 candidates plus a broader "consider also" set
  *
  * Cross-MCP composites are deliberately out of scope (§10): RxNorm mapping
- * lives in `@clinical-mcp/drugs` and stays an agent-orchestrated step.
+ * lives in `@openclinicalai/drugs` and stays an agent-orchestrated step.
  */
 
 import {
@@ -17,7 +17,7 @@ import {
   defineTool,
   makeResult,
   makeSource,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 import { z } from "zod";
 import { searchIcd10, searchLoinc } from "../clients/clinical-tables.js";
 import { searchUmlsBySource } from "../clients/umls.js";
@@ -29,7 +29,7 @@ import type { CodeMatch, CodeWorkup, ConceptMap } from "../types.js";
 const mapConceptAcrossVocabsTool = defineTool({
   name: "map_concept_across_vocabs",
   description:
-    "Resolve a clinical term across ICD-10-CM and LOINC in parallel. SNOMED CT is included when a UMLS license is configured (planned for milestone 7). RxNorm mapping lives in @clinical-mcp/drugs.",
+    "Resolve a clinical term across ICD-10-CM and LOINC in parallel. SNOMED CT is included when a UMLS license is configured (planned for milestone 7). RxNorm mapping lives in @openclinicalai/drugs.",
   inputSchema: {
     ...crossCuttingShape,
     term: z.string().min(1).describe("Clinical term to map."),
@@ -81,7 +81,7 @@ const mapConceptAcrossVocabsTool = defineTool({
       );
     }
     warnings.push(
-      "RxNorm mapping lives in @clinical-mcp/drugs (see search_drugs / get_drug_by_rxcui); cross-MCP composition is left to the agent (ARCHITECTURE.md §10).",
+      "RxNorm mapping lives in @openclinicalai/drugs (see search_drugs / get_drug_by_rxcui); cross-MCP composition is left to the agent (ARCHITECTURE.md §10).",
     );
 
     const sources: Source[] = [

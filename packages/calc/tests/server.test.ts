@@ -1,13 +1,13 @@
-import { createClinicalMcpServer } from "@clinical-mcp/shared";
+import { createClinicalMcpServer } from "@openclinicalai/shared";
 import { describe, expect, it } from "vitest";
 import { ALL_CALCULATORS, calcTools, discoveryTools } from "../src/index.js";
 
 function build() {
   return createClinicalMcpServer({
-    name: "@clinical-mcp/calc",
+    name: "@openclinicalai/calc",
     version: "0.1.0",
     tools: calcTools(),
-    env: { CLINICAL_CACHE_URL: "none" },
+    env: { CLINICALAI_MCP_CACHE_URL: "none" },
   });
 }
 

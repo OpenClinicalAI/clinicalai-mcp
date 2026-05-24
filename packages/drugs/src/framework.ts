@@ -1,10 +1,10 @@
 /**
  * Drug-domain framework — the cross-cutting tool-handler infrastructure lives
- * in `@clinical-mcp/shared` and is re-exported here. This file only adds the
+ * in `@openclinicalai/shared` and is re-exported here. This file only adds the
  * citation builders that are specific to the drug data sources.
  */
 
-import { PUBLISHERS, type Source, makeSource } from "@clinical-mcp/shared";
+import { PUBLISHERS, type Source, makeSource } from "@openclinicalai/shared";
 
 export {
   crossCuttingShape,
@@ -12,7 +12,7 @@ export {
   type UpstreamText,
   withCache,
   type WithCacheOptions,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 
 const NOW = (): string => new Date().toISOString();
 

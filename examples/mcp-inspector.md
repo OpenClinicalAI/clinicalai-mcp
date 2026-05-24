@@ -18,16 +18,16 @@ corepack pnpm -r build
 Pick a server and run the inspector with `node` pointing at its built bin:
 
 ```sh
-# @clinical-mcp/calc
+# @openclinicalai/calc
 npx @modelcontextprotocol/inspector node packages/calc/dist/cli.js
 
-# @clinical-mcp/drugs (set the openFDA key if you have one)
+# @openclinicalai/drugs (set the openFDA key if you have one)
 OPENFDA_API_KEY=your-key npx @modelcontextprotocol/inspector node packages/drugs/dist/cli.js
 
-# @clinical-mcp/evidence (NCBI key raises rate limit but isn't required)
+# @openclinicalai/evidence (NCBI key raises rate limit but isn't required)
 NCBI_API_KEY=your-key npx @modelcontextprotocol/inspector node packages/evidence/dist/cli.js
 
-# @clinical-mcp/terminologies (UMLS key activates SNOMED tools)
+# @openclinicalai/terminologies (UMLS key activates SNOMED tools)
 UMLS_API_KEY=your-key npx @modelcontextprotocol/inspector node packages/terminologies/dist/cli.js
 ```
 
@@ -41,7 +41,7 @@ the server (including the 5 shared meta tools `describe_capabilities`,
 Use these as a smoke test that the full ToolResult envelope is well-formed
 before turning a clinician loose on Claude Desktop.
 
-### `@clinical-mcp/calc`
+### `@openclinicalai/calc`
 
 | Tool | Inputs | Look for in the result |
 |---|---|---|
@@ -50,7 +50,7 @@ before turning a clinician loose on Claude Desktop.
 | `list_calculators` | `{domain: "composite"}` | Returns 4 composites |
 | `describe_calculator` | `{name: "calc_meld"}` | Returns Zod input schema rendered to JSON Schema + Kamath 2001 / Kim 2008 citations |
 
-### `@clinical-mcp/drugs`
+### `@openclinicalai/drugs`
 
 | Tool | Inputs | Look for |
 |---|---|---|
@@ -59,21 +59,21 @@ before turning a clinician loose on Claude Desktop.
 | `get_drug_interactions` | `{rxcuis: ["6809", "4821"]}` (no DRUGBANK key) | Empty interactions + clear warning about NLM API retirement + license suggestion |
 | `redact_phi` | `{text: "Reach me at a@b.com"}` | `redacted_text` contains `[REDACTED:EMAIL]` |
 
-### `@clinical-mcp/evidence`
+### `@openclinicalai/evidence`
 
 | Tool | Inputs | Look for |
 |---|---|---|
 | `search_pubmed` | `{query: "SGLT2 heart failure", publication_types: ["rct"], limit: 5}` | Recent ArticleSummary records with PMIDs, NIH source |
 | `summarize_evidence` | `{question: "Does metformin reduce mortality in T2DM?"}` | `evidence_grade` ∈ {high, moderate, low, insufficient}; SR/RCT/recruiting buckets populated |
 | `get_trial` | `{nct_id: "NCT00000620"}` | Flattened Trial record (eligibility, interventions, etc.) |
+| `search_uspstf` | `{query: "screening"}` | Multiple recommendations + **AHRQ license clause in `warnings`** |
+| `list_uspstf_by_grade` | `{grade: "A"}` | Filtered list + AHRQ warning |
 
-### `@clinical-mcp/terminologies`
+### `@openclinicalai/terminologies`
 
 | Tool | Inputs | Look for |
 |---|---|---|
 | `search_icd10` | `{query: "type 2 diabetes"}` | E11.x codes back |
-| `search_uspstf` | `{query: "screening"}` | Multiple recommendations + **AHRQ license clause in `warnings`** |
-| `list_uspstf_by_grade` | `{grade: "A"}` | Filtered list + AHRQ warning |
 | `map_concept_across_vocabs` | `{term: "glucose"}` | ICD-10 + LOINC mappings, SNOMED-omitted note (or SNOMED filled if `UMLS_API_KEY` is set) |
 | `search_snomed` | `{query: "diabetes"}` (no UMLS key) | `LICENSE_REQUIRED` error with suggestion to set `UMLS_API_KEY` |
 

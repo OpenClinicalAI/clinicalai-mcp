@@ -3,7 +3,7 @@
  * variants) and a context builder using the NoopCache.
  */
 
-import { type ServerContext, createClinicalMcpServer } from "@clinical-mcp/shared";
+import { type ServerContext, createClinicalMcpServer } from "@openclinicalai/shared";
 import { vi } from "vitest";
 import { evidenceTools } from "../src/index.js";
 
@@ -40,9 +40,9 @@ export function stubFetchRoutes(routes: FetchRoute[]) {
 /** Build a server context for handler tests (no filesystem cache). */
 export function buildContext(extraEnv: Record<string, string> = {}): ServerContext {
   return createClinicalMcpServer({
-    name: "@clinical-mcp/evidence",
+    name: "@openclinicalai/evidence",
     version: "0.1.0",
     tools: evidenceTools(),
-    env: { CLINICAL_CACHE_URL: "none", ...extraEnv },
+    env: { CLINICALAI_MCP_CACHE_URL: "none", ...extraEnv },
   }).context;
 }

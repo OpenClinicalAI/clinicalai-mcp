@@ -7,7 +7,7 @@
  * the `df` (display-fields) parameter.
  */
 
-import { getUpstreamJson } from "@clinical-mcp/shared";
+import { getUpstreamJson } from "@openclinicalai/shared";
 import type { CodeMatch } from "../types.js";
 
 const BASE = "https://clinicaltables.nlm.nih.gov/api";

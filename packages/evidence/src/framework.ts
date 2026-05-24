@@ -1,10 +1,10 @@
 /**
  * Evidence-domain framework. Re-exports the cross-cutting handler infrastructure
- * from `@clinical-mcp/shared` and adds the citation builders for PubMed and
- * ClinicalTrials.gov records.
+ * from `@openclinicalai/shared` and adds the citation builders for PubMed,
+ * ClinicalTrials.gov, and USPSTF.
  */
 
-import { PUBLISHERS, type Source, makeSource } from "@clinical-mcp/shared";
+import { PUBLISHERS, type Source, makeSource } from "@openclinicalai/shared";
 
 export {
   crossCuttingShape,
@@ -12,7 +12,7 @@ export {
   type UpstreamText,
   withCache,
   type WithCacheOptions,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 
 const NOW = (): string => new Date().toISOString();
 
@@ -36,6 +36,19 @@ export function clinicalTrialsSource(nctId: string, title?: string): Source {
     identifier: nctId,
     identifier_type: "nct",
     publisher: PUBLISHERS.CLINICALTRIALS,
+    retrieved_at: NOW(),
+  });
+}
+
+/** Build a citation for a USPSTF recommendation. */
+export function uspstfSource(rec: { id: string; title: string; topic_url?: string }): Source {
+  return makeSource({
+    title: `USPSTF: ${rec.title}`,
+    url:
+      rec.topic_url ?? "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation-topics",
+    identifier: rec.id,
+    identifier_type: "uspstf",
+    publisher: PUBLISHERS.USPSTF,
     retrieved_at: NOW(),
   });
 }

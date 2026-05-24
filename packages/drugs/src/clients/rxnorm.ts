@@ -7,7 +7,7 @@
  * Lexicomp / Micromedex) to fill (ARCHITECTURE.md §3.4, §5.1).
  */
 
-import { getUpstreamJson } from "@clinical-mcp/shared";
+import { getUpstreamJson } from "@openclinicalai/shared";
 
 const RXNAV_BASE = "https://rxnav.nlm.nih.gov/REST";
 

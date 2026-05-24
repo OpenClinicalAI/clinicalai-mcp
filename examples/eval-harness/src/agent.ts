@@ -1,5 +1,5 @@
 /**
- * Anthropic-SDK agent loop driving the clinical-mcp tools.
+ * Anthropic-SDK agent loop driving the clinicalai-mcp tools.
  *
  * Adaptive thinking is enabled and `display: "summarized"` so the clinician
  * reading the trace can see Claude's reasoning between tool calls — that's the
@@ -13,7 +13,7 @@ import { type McpSession, type RemoteTool, callRemoteTool } from "./mcp.js";
 const MODEL = "claude-opus-4-7";
 const MAX_TOOL_ITERATIONS = 10;
 
-const SYSTEM_PROMPT = `You are a clinical decision-support assistant for the clinical-mcp test harness.
+const SYSTEM_PROMPT = `You are a clinical decision-support assistant for the clinicalai-mcp test harness.
 
 Use the provided MCP tools to answer the clinician's question. Always:
 - Pick the most specific tool that fits the question (e.g. calc_chads_vasc over a generic search).

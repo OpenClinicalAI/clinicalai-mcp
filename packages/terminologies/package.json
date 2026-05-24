@@ -1,14 +1,14 @@
 {
-  "name": "@clinical-mcp/terminologies",
+  "name": "@openclinicalai/terminologies",
   "version": "0.1.0",
-  "description": "ICD-10-CM + LOINC + USPSTF (+ UMLS slot) terminology MCP server for the clinical-mcp suite.",
+  "description": "ICD-10-CM + LOINC (+ UMLS slot) terminology MCP server for the clinicalai-mcp suite.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "clinical-mcp-terminologies": "./dist/cli.js"
+    "clinicalai-mcp-terminologies": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -17,7 +17,7 @@
       "require": "./dist/index.cjs"
     }
   },
-  "files": ["dist", "data"],
+  "files": ["dist"],
   "engines": {
     "node": ">=20"
   },
@@ -28,7 +28,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@clinical-mcp/shared": "workspace:*",
+    "@openclinicalai/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.24.1"
   },

@@ -1,5 +1,5 @@
 /**
- * Named policy presets, selectable via `CLINICAL_MCP_POLICY`.
+ * Named policy presets, selectable via `CLINICALAI_MCP_POLICY`.
  *
  * A preset is just a `PolicyFile` — it goes through exactly the same default
  * resolution and fail-loud validation as a user-supplied YAML file.
@@ -26,5 +26,5 @@ export const PRESETS: Record<DeploymentType, PolicyFile> = {
   },
 };
 
-/** Names accepted by `CLINICAL_MCP_POLICY`. */
+/** Names accepted by `CLINICALAI_MCP_POLICY`. */
 export const PRESET_NAMES = Object.keys(PRESETS) as DeploymentType[];

@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Build first: domain packages type-check and test against @clinical-mcp/shared's
+      # Build first: domain packages type-check and test against @clinicalai-mcp/shared's
       # built declarations, so the workspace must be built before typecheck/test.
       - name: Build
         run: pnpm build

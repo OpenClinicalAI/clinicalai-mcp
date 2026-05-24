@@ -1,11 +1,11 @@
 #!/usr/bin/env tsx
 /**
- * clinical-mcp eval-harness CLI.
+ * clinicalai-mcp eval-harness CLI.
  *
- *   pnpm --filter @clinical-mcp/eval-harness start -- --server calc --list-tools
- *   pnpm --filter @clinical-mcp/eval-harness start -- --server calc --tool calc_chads_vasc --args '{"age_y":76,"sex":"F","congestive_heart_failure":false,"hypertension":true,"diabetes":true,"stroke_tia_thromboembolism":true,"vascular_disease":false}'
- *   pnpm --filter @clinical-mcp/eval-harness start -- --server calc --question "CHA2DS2-VASc for a 76yo woman with HTN, diabetes, and prior stroke?"
- *   pnpm --filter @clinical-mcp/eval-harness start -- --server evidence --prompt-set prompts/clinical-cases.json
+ *   pnpm --filter @openclinicalai/eval-harness start -- --server calc --list-tools
+ *   pnpm --filter @openclinicalai/eval-harness start -- --server calc --tool calc_chads_vasc --args '{"age_y":76,"sex":"F","congestive_heart_failure":false,"hypertension":true,"diabetes":true,"stroke_tia_thromboembolism":true,"vascular_disease":false}'
+ *   pnpm --filter @openclinicalai/eval-harness start -- --server calc --question "CHA2DS2-VASc for a 76yo woman with HTN, diabetes, and prior stroke?"
+ *   pnpm --filter @openclinicalai/eval-harness start -- --server evidence --prompt-set prompts/clinical-cases.json
  */
 
 import { readFileSync } from "node:fs";
@@ -43,7 +43,7 @@ function parseArgs(argv: string[]): Args {
 }
 
 function printHelp(): void {
-  process.stdout.write(`clinical-mcp eval-harness
+  process.stdout.write(`clinicalai-mcp eval-harness
 
 Usage:
   --list-servers                  Print available server names.
@@ -89,7 +89,7 @@ async function main(): Promise<void> {
   const session = await openSession(args.server);
   try {
     if (args.listTools) {
-      process.stdout.write(`\nTools available on @clinical-mcp/${args.server}:\n`);
+      process.stdout.write(`\nTools available on @openclinicalai/${args.server}:\n`);
       for (const t of session.tools) {
         const desc = (t.description ?? "").slice(0, 100);
         process.stdout.write(`  - ${t.name.padEnd(34)} ${desc}\n`);
@@ -121,7 +121,7 @@ async function main(): Promise<void> {
     }
 
     // Fallback: just list the tools.
-    process.stdout.write(`\nTools available on @clinical-mcp/${args.server}:\n`);
+    process.stdout.write(`\nTools available on @openclinicalai/${args.server}:\n`);
     for (const t of session.tools) {
       process.stdout.write(`  - ${t.name}\n`);
     }

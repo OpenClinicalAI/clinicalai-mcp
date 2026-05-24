@@ -13,7 +13,7 @@ import {
 const tmpDirs: string[] = [];
 
 function tmpPolicyFile(yaml: string): string {
-  const dir = mkdtempSync(join(tmpdir(), "clinical-mcp-policy-"));
+  const dir = mkdtempSync(join(tmpdir(), "clinicalai-mcp-policy-"));
   tmpDirs.push(dir);
   const path = join(dir, "policy.yaml");
   writeFileSync(path, yaml, "utf8");
@@ -82,7 +82,7 @@ describe("resolvePolicy — fail-loud validation", () => {
     };
     const err = expectPolicyError(() => resolvePolicy(file, {}));
     expect(err.section).toBe("cache");
-    expect(err.field).toBe("CLINICAL_CACHE_ENCRYPTION_KEY");
+    expect(err.field).toBe("CLINICALAI_MCP_CACHE_ENCRYPTION_KEY");
   });
 
   it("accepts a covered_entity policy once sink + encryption key are present", () => {
@@ -90,7 +90,7 @@ describe("resolvePolicy — fail-loud validation", () => {
       deployment_type: "covered_entity",
       logging: { audit_sink: "syslog://localhost:514" },
     };
-    const { policy } = resolvePolicy(file, { CLINICAL_CACHE_ENCRYPTION_KEY: "s3cret" });
+    const { policy } = resolvePolicy(file, { CLINICALAI_MCP_CACHE_ENCRYPTION_KEY: "s3cret" });
     expect(policy.deployment_type).toBe("covered_entity");
     expect(policy.cache.persist_sensitive_inputs).toBe(true);
   });
@@ -161,27 +161,27 @@ describe("loadPolicy — env-driven selection", () => {
     expect(source).toContain("personal");
   });
 
-  it("selects a named preset via CLINICAL_MCP_POLICY", () => {
-    const { policy } = loadPolicy({ CLINICAL_MCP_POLICY: "research_deid" });
+  it("selects a named preset via CLINICALAI_MCP_POLICY", () => {
+    const { policy } = loadPolicy({ CLINICALAI_MCP_POLICY: "research_deid" });
     expect(policy.deployment_type).toBe("research_deid");
   });
 
   it("rejects an unknown preset name", () => {
-    expect(() => loadPolicy({ CLINICAL_MCP_POLICY: "bogus" })).toThrow(/not a known preset/);
+    expect(() => loadPolicy({ CLINICALAI_MCP_POLICY: "bogus" })).toThrow(/not a known preset/);
   });
 
   it("loads and validates a YAML policy file", () => {
     const path = tmpPolicyFile(
       ["deployment_type: personal", "logging:", "  phi_pattern_warnings: false", ""].join("\n"),
     );
-    const { policy } = loadPolicy({ CLINICAL_MCP_POLICY_FILE: path });
+    const { policy } = loadPolicy({ CLINICALAI_MCP_POLICY_FILE: path });
     expect(policy.deployment_type).toBe("personal");
     expect(policy.logging.phi_pattern_warnings).toBe(false);
   });
 
   it("rejects a YAML file with an unknown key (strict schema)", () => {
     const path = tmpPolicyFile(["deployment_type: personal", "bogus_key: true", ""].join("\n"));
-    expect(() => loadPolicy({ CLINICAL_MCP_POLICY_FILE: path })).toThrow(
+    expect(() => loadPolicy({ CLINICALAI_MCP_POLICY_FILE: path })).toThrow(
       /Invalid deployment policy/,
     );
   });

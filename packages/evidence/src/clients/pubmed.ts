@@ -6,7 +6,7 @@
  * stays "free" either way (ARCHITECTURE.md §3.4).
  */
 
-import { getUpstreamJson, getUpstreamText } from "@clinical-mcp/shared";
+import { getUpstreamJson, getUpstreamText } from "@openclinicalai/shared";
 import type { Article, ArticleSummary } from "../types.js";
 
 const EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";

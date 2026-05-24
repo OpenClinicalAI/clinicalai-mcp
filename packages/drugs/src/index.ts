@@ -1,8 +1,8 @@
 /**
- * @clinical-mcp/drugs — public API.
+ * @openclinicalai/drugs — public API.
  *
  * Free-tier wrappers over openFDA, RxNorm, and DailyMed (ARCHITECTURE.md §5.1).
- * The server is launched via the `clinical-mcp-drugs` bin (`cli.ts`).
+ * The server is launched via the `clinicalai-mcp-drugs` bin (`cli.ts`).
  */
 
 export {

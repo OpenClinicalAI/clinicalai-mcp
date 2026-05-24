@@ -20,7 +20,7 @@
  *   → array of interaction objects (field names defensively read below).
  */
 
-import { ClinicalMcpError } from "@clinical-mcp/shared";
+import { ClinicalMcpError } from "@openclinicalai/shared";
 import type { DrugInteraction } from "../types.js";
 
 const DEFAULT_BASE = "https://api.drugbank.com/v1";
@@ -64,7 +64,7 @@ export async function fetchDrugBankDdi(
       headers: {
         accept: "application/json",
         authorization: authHeader(env),
-        "user-agent": "clinical-mcp/0.1 (+https://github.com/kswanjitsu/OpenClinicalAI)",
+        "user-agent": "clinicalai-mcp/0.1 (+https://github.com/OpenClinicalAI/clinicalai-mcp)",
       },
     });
   } catch (err) {

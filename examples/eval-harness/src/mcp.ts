@@ -1,5 +1,5 @@
 /**
- * Thin MCP-client wrapper: spawn one of the clinical-mcp servers as a stdio
+ * Thin MCP-client wrapper: spawn one of the clinicalai-mcp servers as a stdio
  * subprocess, list its tools, and call them by name. The harness uses this to
  * either drive an Anthropic agent loop (`agent.ts`) or call individual tools
  * directly from the CLI.
@@ -17,7 +17,7 @@ export interface RemoteTool {
   input_schema: Record<string, unknown>;
 }
 
-/** A live connection to a clinical-mcp server. */
+/** A live connection to a clinicalai-mcp server. */
 export interface McpSession {
   client: Client;
   tools: RemoteTool[];
@@ -32,7 +32,7 @@ export async function openSession(server: ServerName): Promise<McpSession> {
     env: { ...process.env } as Record<string, string>,
   });
   const client = new Client(
-    { name: "clinical-mcp-eval-harness", version: "0.1.0" },
+    { name: "clinicalai-mcp-eval-harness", version: "0.1.0" },
     { capabilities: {} },
   );
   await client.connect(transport);
@@ -55,7 +55,7 @@ export async function openSession(server: ServerName): Promise<McpSession> {
 
 /**
  * Call a tool by name and return the textual content the server emitted. Every
- * clinical-mcp tool returns its `ToolResult` as a single JSON-stringified text
+ * clinicalai-mcp tool returns its `ToolResult` as a single JSON-stringified text
  * block, so the returned string is JSON the caller can re-parse if needed.
  */
 export async function callRemoteTool(

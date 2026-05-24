@@ -137,11 +137,11 @@ function validateResolved(
         "cache.persist_sensitive_inputs is true, so cache.encrypted_at_rest must also be true",
       );
     }
-    if (!env.CLINICAL_CACHE_ENCRYPTION_KEY) {
+    if (!env.CLINICALAI_MCP_CACHE_ENCRYPTION_KEY) {
       throw new PolicyValidationError(
         "cache",
-        "CLINICAL_CACHE_ENCRYPTION_KEY",
-        "cache.persist_sensitive_inputs is true, so the CLINICAL_CACHE_ENCRYPTION_KEY env var must be set",
+        "CLINICALAI_MCP_CACHE_ENCRYPTION_KEY",
+        "cache.persist_sensitive_inputs is true, so the CLINICALAI_MCP_CACHE_ENCRYPTION_KEY env var must be set",
       );
     }
   }
@@ -210,15 +210,15 @@ function formatZodIssues(error: {
 /**
  * Load the deployment policy from the environment.
  *
- * Precedence: `CLINICAL_MCP_POLICY_FILE` (YAML path) → `CLINICAL_MCP_POLICY`
+ * Precedence: `CLINICALAI_MCP_POLICY_FILE` (YAML path) → `CLINICALAI_MCP_POLICY`
  * (preset name) → the `personal` preset (default).
  *
  * Throws `PolicyValidationError` (or a plain `Error` for unreadable/invalid
  * files) — callers are expected to print and exit non-zero.
  */
 export function loadPolicy(env: NodeJS.ProcessEnv = process.env): LoadedPolicy {
-  const filePath = env.CLINICAL_MCP_POLICY_FILE;
-  const presetName = env.CLINICAL_MCP_POLICY;
+  const filePath = env.CLINICALAI_MCP_POLICY_FILE;
+  const presetName = env.CLINICALAI_MCP_POLICY;
 
   let rawFile: unknown;
   let source: string;
@@ -229,21 +229,21 @@ export function loadPolicy(env: NodeJS.ProcessEnv = process.env): LoadedPolicy {
       text = readFileSync(filePath, "utf8");
     } catch (err) {
       throw new Error(
-        `Could not read CLINICAL_MCP_POLICY_FILE at "${filePath}": ${(err as Error).message}`,
+        `Could not read CLINICALAI_MCP_POLICY_FILE at "${filePath}": ${(err as Error).message}`,
       );
     }
     try {
       rawFile = parseYaml(text);
     } catch (err) {
       throw new Error(
-        `CLINICAL_MCP_POLICY_FILE at "${filePath}" is not valid YAML: ${(err as Error).message}`,
+        `CLINICALAI_MCP_POLICY_FILE at "${filePath}" is not valid YAML: ${(err as Error).message}`,
       );
     }
     source = `policy file: ${filePath}`;
   } else if (presetName) {
     if (!PRESET_NAMES.includes(presetName as DeploymentType)) {
       throw new Error(
-        `CLINICAL_MCP_POLICY="${presetName}" is not a known preset. Expected one of: ${PRESET_NAMES.join(", ")}.`,
+        `CLINICALAI_MCP_POLICY="${presetName}" is not a known preset. Expected one of: ${PRESET_NAMES.join(", ")}.`,
       );
     }
     rawFile = PRESETS[presetName as DeploymentType];

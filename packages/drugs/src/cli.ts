@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * `@clinical-mcp/drugs` server entrypoint — the `clinical-mcp-drugs` bin.
+ * `@openclinicalai/drugs` server entrypoint — the `clinicalai-mcp-drugs` bin.
  *
  * Runs as a per-user stdio MCP process. The shared scaffold loads + validates
  * the deployment policy, mounts the meta tools, and runs phi-lint over every
  * drug tool's input schema before serving.
  */
 
-import { runClinicalMcpServer } from "@clinical-mcp/shared";
+import { runClinicalMcpServer } from "@openclinicalai/shared";
 import { drugTools } from "./registry.js";
 
 runClinicalMcpServer({
-  name: "@clinical-mcp/drugs",
+  name: "@openclinicalai/drugs",
   version: "0.1.0",
   tools: drugTools(),
 }).catch((err: unknown) => {

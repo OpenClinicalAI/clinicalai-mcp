@@ -3,9 +3,9 @@
  *
  * Backend selection (ARCHITECTURE.md §4.2):
  *   - default                       → SqliteCache
- *   - CLINICAL_CACHE_URL=none        → NoopCache
- *   - CLINICAL_CACHE_URL=redis://... → RedisCache    (planned, milestone TBD)
- *   - CLINICAL_CACHE_URL=postgres://...→ PostgresCache (planned, milestone TBD)
+ *   - CLINICALAI_MCP_CACHE_URL=none        → NoopCache
+ *   - CLINICALAI_MCP_CACHE_URL=redis://... → RedisCache    (planned, milestone TBD)
+ *   - CLINICALAI_MCP_CACHE_URL=postgres://...→ PostgresCache (planned, milestone TBD)
  */
 
 import { homedir } from "node:os";
@@ -33,49 +33,54 @@ export const DEFAULT_TTL_S = {
 export interface CreateCacheOptions {
   /** Server slug used for the default cache directory, e.g. "drugs". */
   server: string;
-  /** Override the cache directory entirely (otherwise `CLINICAL_CACHE_DIR` or `~/.clinical-mcp`). */
+  /** Override the cache directory entirely (otherwise `CLINICALAI_MCP_CACHE_DIR` or `~/.clinicalai-mcp`). */
   cacheDir?: string;
   /** Env to read from; defaults to `process.env` (overridable for tests). */
   env?: NodeJS.ProcessEnv;
 }
 
 /**
- * Build the cache backend for a server. Honors `CLINICAL_CACHE_URL` and
- * `CLINICAL_CACHE_DIR`. Redis/Postgres backends are recognized but not yet
+ * Build the cache backend for a server. Honors `CLINICALAI_MCP_CACHE_URL` and
+ * `CLINICALAI_MCP_CACHE_DIR`. Redis/Postgres backends are recognized but not yet
  * implemented — they fail loudly rather than silently degrading.
  */
 export function createCache(opts: CreateCacheOptions): Cache {
   const env = opts.env ?? process.env;
-  const url = env.CLINICAL_CACHE_URL;
+  const url = env.CLINICALAI_MCP_CACHE_URL;
 
   if (url === "none") return new NoopCache();
 
   if (url?.startsWith("redis://") || url?.startsWith("rediss://")) {
     throw ClinicalMcpError.of(
       "INVALID_INPUT",
-      "CLINICAL_CACHE_URL points at Redis, but the Redis cache backend is not implemented in this build.",
+      "CLINICALAI_MCP_CACHE_URL points at Redis, but the Redis cache backend is not implemented in this build.",
       {
         suggestion:
-          "Use the default SQLite cache (unset CLINICAL_CACHE_URL) or CLINICAL_CACHE_URL=none.",
+          "Use the default SQLite cache (unset CLINICALAI_MCP_CACHE_URL) or CLINICALAI_MCP_CACHE_URL=none.",
       },
     );
   }
   if (url?.startsWith("postgres://") || url?.startsWith("postgresql://")) {
     throw ClinicalMcpError.of(
       "INVALID_INPUT",
-      "CLINICAL_CACHE_URL points at Postgres, but the Postgres cache backend is not implemented in this build.",
+      "CLINICALAI_MCP_CACHE_URL points at Postgres, but the Postgres cache backend is not implemented in this build.",
       {
         suggestion:
-          "Use the default SQLite cache (unset CLINICAL_CACHE_URL) or CLINICAL_CACHE_URL=none.",
+          "Use the default SQLite cache (unset CLINICALAI_MCP_CACHE_URL) or CLINICALAI_MCP_CACHE_URL=none.",
       },
     );
   }
   if (url) {
-    throw ClinicalMcpError.of("INVALID_INPUT", `Unrecognized CLINICAL_CACHE_URL scheme: ${url}`, {
-      suggestion: "Expected one of: none, redis://..., postgres://...",
-    });
+    throw ClinicalMcpError.of(
+      "INVALID_INPUT",
+      `Unrecognized CLINICALAI_MCP_CACHE_URL scheme: ${url}`,
+      {
+        suggestion: "Expected one of: none, redis://..., postgres://...",
+      },
+    );
   }
 
-  const baseDir = opts.cacheDir ?? env.CLINICAL_CACHE_DIR ?? join(homedir(), ".clinical-mcp");
+  const baseDir =
+    opts.cacheDir ?? env.CLINICALAI_MCP_CACHE_DIR ?? join(homedir(), ".clinicalai-mcp");
   return new SqliteCache(join(baseDir, opts.server, "cache.db"));
 }

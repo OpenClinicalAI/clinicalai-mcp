@@ -1,11 +1,11 @@
-# clinical-mcp deployment policy — personal
+# clinicalai-mcp deployment policy — personal
 #
 # This is the default. It assumes NO infrastructure-level protections (no BAA-covered
 # storage, no audit pipeline, no managed retention). Suitable for laptops, students,
 # casual users, anyone running this outside a covered environment.
 #
 # Selecting it: this preset is the default with no env vars set. You only need this
-# file if you want to customize it; point CLINICAL_MCP_POLICY_FILE at the path.
+# file if you want to customize it; point CLINICALAI_MCP_POLICY_FILE at the path.
 deployment_type: personal
 
 cache:

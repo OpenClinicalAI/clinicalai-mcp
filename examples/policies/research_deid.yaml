@@ -1,4 +1,4 @@
-# clinical-mcp deployment policy — research_deid
+# clinicalai-mcp deployment policy — research_deid
 #
 # For research environments operating on datasets that have ALREADY been
 # HIPAA Safe Harbor de-identified upstream. Effectively `personal` minus the
@@ -12,8 +12,8 @@
 # model) to run redaction on the way in — see ARCHITECTURE.md §3.5.4 for
 # the F1 framing and BAA/ZDR requirements for cloud foundation backends.
 #
-# Selecting it: set CLINICAL_MCP_POLICY=research_deid
-# or CLINICAL_MCP_POLICY_FILE pointing at this file.
+# Selecting it: set CLINICALAI_MCP_POLICY=research_deid
+# or CLINICALAI_MCP_POLICY_FILE pointing at this file.
 deployment_type: research_deid
 
 cache:

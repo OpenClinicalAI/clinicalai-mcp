@@ -23,9 +23,9 @@ import type { PhiCategory, RedactionConfig, RedactionSpan, ToolResult } from "./
 /** A self-citation for meta tools — they report configuration, not clinical claims. */
 function metaSource() {
   return makeSource({
-    title: "clinical-mcp — ARCHITECTURE.md §5.0 (shared meta tools)",
-    url: "https://github.com/kswanjitsu/OpenClinicalAI/blob/main/ARCHITECTURE.md",
-    publisher: "clinical-mcp",
+    title: "clinicalai-mcp — ARCHITECTURE.md §5.0 (shared meta tools)",
+    url: "https://github.com/OpenClinicalAI/clinicalai-mcp/blob/main/ARCHITECTURE.md",
+    publisher: "clinicalai-mcp",
   });
 }
 

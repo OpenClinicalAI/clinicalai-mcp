@@ -4,7 +4,7 @@
  * Formulas are reimplemented from the primary literature cited on each result.
  */
 
-import { formulaSource } from "@clinical-mcp/shared";
+import { formulaSource } from "@openclinicalai/shared";
 import { z } from "zod";
 import { type CalculatorDef, defineCalculator } from "../framework.js";
 

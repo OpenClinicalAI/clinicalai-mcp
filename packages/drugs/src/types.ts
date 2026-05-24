@@ -1,5 +1,5 @@
 /**
- * Domain shapes for `@clinical-mcp/drugs` (ARCHITECTURE.md §5.1).
+ * Domain shapes for `@openclinicalai/drugs` (ARCHITECTURE.md §5.1).
  *
  * Every tool returns one of these via the shared `ToolResult<T>` envelope.
  * Fields are flat, extracted, and citation-ready (§3.5 priority 5); raw upstream

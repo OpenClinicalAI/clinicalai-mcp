@@ -23,7 +23,7 @@ export interface CacheSetOptions {
 
 /**
  * Pluggable cache backend. `SqliteCache` is the default; `NoopCache` disables
- * caching; Redis/Postgres backends are activated via `CLINICAL_CACHE_URL`.
+ * caching; Redis/Postgres backends are activated via `CLINICALAI_MCP_CACHE_URL`.
  */
 export interface Cache {
   /** Return a live entry, or `null` on miss / expiry. Expired rows are dropped lazily. */

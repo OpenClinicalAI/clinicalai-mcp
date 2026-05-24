@@ -1,8 +1,13 @@
 /**
- * USPSTF snapshot loader (ARCHITECTURE.md §5.4 — "snapshot-first, optional
+ * USPSTF snapshot loader (ARCHITECTURE.md §5.2 — "snapshot-first, optional
  * live mode"). A versioned JSON snapshot ships inside the package so USPSTF
  * lookups work out of the box with no AHRQ API token. A future live-mode
  * fallback would activate via `USPSTF_API_TOKEN`.
+ *
+ * USPSTF lives in @openclinicalai/evidence because USPSTF recommendations are
+ * evidence-derived clinical guidelines (systematic-review-driven preventive-
+ * care recommendations with grades A/B/C/D/I), not a code vocabulary. They
+ * belong next to PubMed and ClinicalTrials.gov, not next to ICD-10/LOINC.
  *
  * Bundled at `data/uspstf-2026-01.json`; tsup's `onSuccess` copies it into
  * `dist/data/` so the same loader works from both source (tests) and the
@@ -19,7 +24,7 @@ let CACHED: UspstfSnapshot | null = null;
 function resolveSnapshotPath(): string {
   const candidates = [
     new URL("./data/uspstf-2026-01.json", import.meta.url), // dist/data/
-    new URL("../../data/uspstf-2026-01.json", import.meta.url), // packages/terminologies/data/
+    new URL("../../data/uspstf-2026-01.json", import.meta.url), // packages/evidence/data/
   ];
   for (const c of candidates) {
     const path = fileURLToPath(c);
@@ -60,7 +65,7 @@ export function getRecommendation(id: string): Recommendation | undefined {
 
 /**
  * The AHRQ license/redistribution notice that must appear in every USPSTF
- * tool's `warnings` output (§5.4: "License caveat that must be surfaced").
+ * tool's `warnings` output (§5.2: "License caveat that must be surfaced").
  */
 export const AHRQ_LICENSE_WARNING =
   "USPSTF content is reproduced verbatim under AHRQ's redistribution permission. It must NOT be modified, reproduced for a fee, sold, or incorporated into a profit-making venture without written AHRQ permission. Source: U.S. Preventive Services Task Force, AHRQ.";

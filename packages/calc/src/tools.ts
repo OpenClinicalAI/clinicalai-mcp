@@ -1,9 +1,9 @@
 /**
- * Assembles every `@clinical-mcp/calc` tool: one tool per calculator plus the
+ * Assembles every `@openclinicalai/calc` tool: one tool per calculator plus the
  * two discovery tools. The shared meta tools are mounted by the server scaffold.
  */
 
-import type { ToolDef } from "@clinical-mcp/shared";
+import type { ToolDef } from "@openclinicalai/shared";
 import { discoveryTools } from "./discovery.js";
 import { calcToolDef } from "./framework.js";
 import { ALL_CALCULATORS } from "./registry.js";

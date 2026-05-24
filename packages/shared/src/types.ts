@@ -1,5 +1,5 @@
 /**
- * Core cross-cutting types for the clinical-mcp suite.
+ * Core cross-cutting types for the clinicalai-mcp suite.
  *
  * Every tool in every server returns a `ToolResult<T>`. These types are the
  * public contract — breaking changes here are major version bumps across all

@@ -6,7 +6,7 @@
  * about into the {@link TrialSummary} / {@link Trial} shapes.
  */
 
-import { getUpstreamJson } from "@clinical-mcp/shared";
+import { getUpstreamJson } from "@openclinicalai/shared";
 import type { Trial, TrialPhase, TrialStatus, TrialSummary } from "../types.js";
 
 const CT_BASE = "https://clinicaltrials.gov/api/v2";

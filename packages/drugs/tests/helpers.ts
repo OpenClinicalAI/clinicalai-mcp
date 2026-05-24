@@ -3,7 +3,7 @@
  * builder that runs the server with the NoopCache so tests touch no filesystem.
  */
 
-import { type ServerContext, createClinicalMcpServer } from "@clinical-mcp/shared";
+import { type ServerContext, createClinicalMcpServer } from "@openclinicalai/shared";
 import { vi } from "vitest";
 import { drugTools } from "../src/index.js";
 
@@ -39,9 +39,9 @@ export function stubFetchRoutes(routes: FetchRoute[]) {
 /** Build a server context for handler tests (no filesystem cache). Extra env can be merged. */
 export function buildContext(extraEnv: Record<string, string> = {}): ServerContext {
   return createClinicalMcpServer({
-    name: "@clinical-mcp/drugs",
+    name: "@openclinicalai/drugs",
     version: "0.1.0",
     tools: drugTools(),
-    env: { CLINICAL_CACHE_URL: "none", ...extraEnv },
+    env: { CLINICALAI_MCP_CACHE_URL: "none", ...extraEnv },
   }).context;
 }

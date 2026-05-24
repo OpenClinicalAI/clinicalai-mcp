@@ -3,7 +3,7 @@
  * hands the file to the standard `dotenv` package for parsing. Real OS env
  * vars take precedence; `.env` values only fill in keys that aren't set.
  *
- * The clinical-mcp scaffold calls {@link loadDotEnv} once at server start (top
+ * The clinicalai-mcp scaffold calls {@link loadDotEnv} once at server start (top
  * of `runClinicalMcpServer`) so domain servers can rely on `ctx.env.<KEY>`
  * resolving without each user wiring dotenv themselves. We walk upward because
  * domain CLIs run from `packages/<x>/dist/cli.js`, but users expect a single

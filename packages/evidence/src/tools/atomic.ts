@@ -15,7 +15,7 @@ import {
   defineTool,
   makeResult,
   makeSource,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 import { z } from "zod";
 import { type CtSearchFilters, getTrial, searchTrials } from "../clients/clinicaltrials.js";
 import {

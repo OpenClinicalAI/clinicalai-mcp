@@ -1,9 +1,13 @@
 /**
- * @clinical-mcp/terminologies — public API.
+ * @openclinicalai/terminologies — public API.
  *
- * ICD-10-CM + LOINC (NLM Clinical Tables, free), USPSTF (bundled snapshot),
- * and SNOMED CT / UMLS slots (licensed, planned for milestone 7).
- * Server is launched via the `clinical-mcp-terminologies` bin (`cli.ts`).
+ * ICD-10-CM + LOINC (NLM Clinical Tables, free) and SNOMED CT / UMLS slots
+ * (licensed, planned for milestone 7).
+ *
+ * USPSTF used to live here too but moved to @openclinicalai/evidence in v0.1
+ * since its recommendations are evidence-derived guidelines, not codes.
+ *
+ * Server is launched via the `clinicalai-mcp-terminologies` bin (`cli.ts`).
  */
 
 export {
@@ -13,27 +17,9 @@ export {
   searchLoincByCode,
 } from "./clients/clinical-tables.js";
 export {
-  AHRQ_LICENSE_WARNING,
-  getRecommendation,
-  listByGrade,
-  loadSnapshot,
-  searchSnapshot,
-  snapshotProvenanceWarning,
-} from "./clients/uspstf.js";
-export {
   compositeTerminologyTools,
   icd10LoincTools,
   snomedUmlsTools,
   terminologyTools,
-  uspstfTools,
 } from "./registry.js";
-export type {
-  CodeMatch,
-  CodeRecord,
-  CodeWorkup,
-  ConceptMap,
-  Recommendation,
-  RecommendationSummary,
-  UspstfGrade,
-  UspstfSnapshot,
-} from "./types.js";
+export type { CodeMatch, CodeRecord, CodeWorkup, ConceptMap } from "./types.js";

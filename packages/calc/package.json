@@ -1,14 +1,14 @@
 {
-  "name": "@clinical-mcp/calc",
+  "name": "@openclinicalai/calc",
   "version": "0.1.0",
-  "description": "Pure-compute clinical calculators exposed as an MCP server — part of the clinical-mcp suite.",
+  "description": "Pure-compute clinical calculators exposed as an MCP server — part of the clinicalai-mcp suite.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "clinical-mcp-calc": "./dist/cli.js"
+    "clinicalai-mcp-calc": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -28,7 +28,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@clinical-mcp/shared": "workspace:*",
+    "@openclinicalai/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.24.1"

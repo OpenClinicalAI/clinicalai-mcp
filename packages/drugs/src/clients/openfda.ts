@@ -5,7 +5,7 @@
  * raises the rate limit (ARCHITECTURE.md §3.4).
  */
 
-import { getUpstreamJson } from "@clinical-mcp/shared";
+import { getUpstreamJson } from "@openclinicalai/shared";
 
 const OPENFDA_BASE = "https://api.fda.gov";
 

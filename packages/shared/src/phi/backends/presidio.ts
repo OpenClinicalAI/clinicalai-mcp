@@ -14,7 +14,7 @@ import type { PhiCategory, RedactionSpan } from "../../types.js";
 import { applyRedactionSpans, dedupeSpans } from "../redact.js";
 import type { RedactionBackendImpl } from "./registry.js";
 
-/** Presidio `entity_type` → clinical-mcp PHI category. Unmapped types are dropped. */
+/** Presidio `entity_type` → clinicalai-mcp PHI category. Unmapped types are dropped. */
 const PRESIDIO_CATEGORY: Record<string, PhiCategory> = {
   PERSON: "name",
   PHONE_NUMBER: "phone",

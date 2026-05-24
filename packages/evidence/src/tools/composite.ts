@@ -16,7 +16,7 @@ import {
   defineTool,
   makeResult,
   makeSource,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 import { z } from "zod";
 import { searchTrials } from "../clients/clinicaltrials.js";
 import { buildPubMedTerm, esearch, esummary } from "../clients/pubmed.js";

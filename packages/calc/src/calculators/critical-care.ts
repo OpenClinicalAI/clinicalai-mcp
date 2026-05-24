@@ -2,7 +2,7 @@
  * Critical-care calculators (ARCHITECTURE.md §5.3).
  */
 
-import { ClinicalMcpError, formulaSource } from "@clinical-mcp/shared";
+import { ClinicalMcpError, formulaSource } from "@openclinicalai/shared";
 import { z } from "zod";
 import { type CalculatorDef, defineCalculator, rangePoints, sumBreakdown } from "../framework.js";
 

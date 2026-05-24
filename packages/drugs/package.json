@@ -1,14 +1,14 @@
 {
-  "name": "@clinical-mcp/drugs",
+  "name": "@openclinicalai/drugs",
   "version": "0.1.0",
-  "description": "openFDA + RxNorm + DailyMed drug-lookup MCP server for the clinical-mcp suite.",
+  "description": "openFDA + RxNorm + DailyMed drug-lookup MCP server for the clinicalai-mcp suite.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "clinical-mcp-drugs": "./dist/cli.js"
+    "clinicalai-mcp-drugs": "./dist/cli.js"
   },
   "exports": {
     ".": {
@@ -28,7 +28,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@clinical-mcp/shared": "workspace:*",
+    "@openclinicalai/shared": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "zod": "^3.24.1"
   },

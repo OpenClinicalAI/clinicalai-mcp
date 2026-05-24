@@ -1,8 +1,8 @@
 /**
- * @clinical-mcp/shared — public API.
+ * @openclinicalai/shared — public API.
  *
  * Shared types, cache, deployment-policy loader, PHI redaction, phi-lint, and
- * the MCP server scaffold consumed by every clinical-mcp domain server.
+ * the MCP server scaffold consumed by every clinicalai-mcp domain server.
  */
 
 /* ---- core types -------------------------------------------------------- */

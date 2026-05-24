@@ -3,7 +3,7 @@
  * using the NoopCache so tests touch no filesystem.
  */
 
-import { type ServerContext, createClinicalMcpServer } from "@clinical-mcp/shared";
+import { type ServerContext, createClinicalMcpServer } from "@openclinicalai/shared";
 import { vi } from "vitest";
 import { terminologyTools } from "../src/index.js";
 
@@ -35,9 +35,9 @@ export function stubFetchRoutes(routes: FetchRoute[]) {
 
 export function buildContext(extraEnv: Record<string, string> = {}): ServerContext {
   return createClinicalMcpServer({
-    name: "@clinical-mcp/terminologies",
+    name: "@openclinicalai/terminologies",
     version: "0.1.0",
     tools: terminologyTools(),
-    env: { CLINICAL_CACHE_URL: "none", ...extraEnv },
+    env: { CLINICALAI_MCP_CACHE_URL: "none", ...extraEnv },
   }).context;
 }

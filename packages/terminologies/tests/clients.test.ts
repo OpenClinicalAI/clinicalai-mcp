@@ -1,15 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  AHRQ_LICENSE_WARNING,
-  getRecommendation,
-  listByGrade,
-  loadSnapshot,
-  searchIcd10,
-  searchIcd10ByCode,
-  searchLoinc,
-  searchSnapshot,
-  snapshotProvenanceWarning,
-} from "../src/index.js";
+import { searchIcd10, searchIcd10ByCode, searchLoinc } from "../src/index.js";
 import { stubFetchRoutes } from "./helpers.js";
 
 afterEach(() => {
@@ -70,33 +60,5 @@ describe("NLM Clinical Tables client", () => {
     expect(matches[0]?.code).toBe("50678-0");
     expect(matches[0]?.extra?.component).toBe("Glucose");
     expect(matches[0]?.extra?.system).toBe("Bld");
-  });
-});
-
-describe("USPSTF snapshot loader", () => {
-  it("loads the bundled snapshot with the expected version metadata", () => {
-    const snap = loadSnapshot();
-    expect(snap.snapshot_version).toBe("2026-01");
-    expect(snap.recommendations.length).toBeGreaterThan(0);
-  });
-
-  it("searchSnapshot is a case-insensitive substring across title / topic / population / text", () => {
-    expect(searchSnapshot("aspirin").length).toBeGreaterThan(0);
-    expect(searchSnapshot("HYPERTENSION").length).toBeGreaterThan(0);
-  });
-
-  it("listByGrade filters to that letter", () => {
-    const a = listByGrade("A");
-    expect(a.every((r) => r.grade === "A")).toBe(true);
-  });
-
-  it("getRecommendation returns a known ID and undefined for unknown", () => {
-    expect(getRecommendation("hypertension-screening-adults")?.grade).toBe("A");
-    expect(getRecommendation("bogus-id")).toBeUndefined();
-  });
-
-  it("exports the verbatim AHRQ license warning and a snapshot provenance line", () => {
-    expect(AHRQ_LICENSE_WARNING).toContain("AHRQ");
-    expect(snapshotProvenanceWarning()).toContain("2026-01");
   });
 });

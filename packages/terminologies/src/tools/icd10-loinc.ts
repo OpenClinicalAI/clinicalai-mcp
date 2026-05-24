@@ -10,7 +10,7 @@ import {
   type ToolResult,
   defineTool,
   makeResult,
-} from "@clinical-mcp/shared";
+} from "@openclinicalai/shared";
 import { z } from "zod";
 import {
   searchIcd10,

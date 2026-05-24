@@ -11,10 +11,10 @@ import {
 /** Build a server with the cache disabled so tests touch no filesystem. */
 function buildServer(tools: ToolDef[] = []) {
   return createClinicalMcpServer({
-    name: "@clinical-mcp/test",
+    name: "@openclinicalai/test",
     version: "0.1.0",
     tools,
-    env: { CLINICAL_CACHE_URL: "none" },
+    env: { CLINICALAI_MCP_CACHE_URL: "none" },
   });
 }
 
@@ -60,7 +60,7 @@ describe("meta tools", () => {
     const tool = metaTools(context).find((t) => t.name === "describe_capabilities");
     const result = await tool?.handler({}, context);
     const data = result?.data as { server_name: string; available_tools: string[] };
-    expect(data.server_name).toBe("@clinical-mcp/test");
+    expect(data.server_name).toBe("@openclinicalai/test");
     expect(data.available_tools).toContain("redact_phi");
   });
 

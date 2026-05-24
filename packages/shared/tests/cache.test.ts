@@ -7,7 +7,7 @@ import { NoopCache, SqliteCache, cacheKey, normalizeArgs } from "../src/cache/in
 const tmpDirs: string[] = [];
 
 function freshDb(): string {
-  const dir = mkdtempSync(join(tmpdir(), "clinical-mcp-cache-"));
+  const dir = mkdtempSync(join(tmpdir(), "clinicalai-mcp-cache-"));
   tmpDirs.push(dir);
   return join(dir, "cache.db");
 }

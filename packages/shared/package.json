@@ -1,7 +1,7 @@
 {
-  "name": "@clinical-mcp/shared",
+  "name": "@openclinicalai/shared",
   "version": "0.1.0",
-  "description": "Shared types, cache, deployment-policy loader, PHI redaction, and the MCP server scaffold for the clinical-mcp suite.",
+  "description": "Shared types, cache, deployment-policy loader, PHI redaction, and the MCP server scaffold for the clinicalai-mcp suite.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.cjs",
