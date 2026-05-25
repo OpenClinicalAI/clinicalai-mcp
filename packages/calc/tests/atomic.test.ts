@@ -467,6 +467,549 @@ describe("MedCalc-Bench tier-1: cardiology", () => {
     expect(r.result).toBe(51.7);
     expect(r.interpretation.band).toContain("severe");
   });
+
+  it("LDL Friedewald: TC 200 / HDL 50 / TG 150 → 120 mg/dL (near-optimal)", () => {
+    const r = compute("calc_ldl_friedewald", {
+      total_cholesterol_mg_dl: 200,
+      hdl_mg_dl: 50,
+      triglycerides_mg_dl: 150,
+    });
+    expect(r.result).toBe(120);
+    expect(r.interpretation.band).toContain("near-optimal");
+  });
+
+  it("LDL Friedewald: TC 240 / HDL 40 / TG 400 → 120 mg/dL with TG-boundary warning", () => {
+    const r = compute("calc_ldl_friedewald", {
+      total_cholesterol_mg_dl: 240,
+      hdl_mg_dl: 40,
+      triglycerides_mg_dl: 400,
+    });
+    expect(r.result).toBe(120);
+    expect(r.warnings?.join(" ")).toContain("Triglycerides > 200");
+  });
+
+  it("LDL Friedewald: TC 300 / HDL 35 / TG 500 invalid (TG > 400)", () => {
+    const r = compute("calc_ldl_friedewald", {
+      total_cholesterol_mg_dl: 300,
+      hdl_mg_dl: 35,
+      triglycerides_mg_dl: 500,
+    });
+    expect(r.warnings?.join(" ")).toContain("invalid");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* MedCalc-Bench tier-2: renal-metabolic + hepatology + endocrinology          */
+/* -------------------------------------------------------------------------- */
+
+describe("MedCalc-Bench tier-2: renal-metabolic", () => {
+  it("Target weight: BMI 25 / height 1.70 m → 72.25 kg", () => {
+    const r = compute("calc_target_weight", { target_bmi: 25, height_m: 1.7 });
+    expect(r.result).toBe(72.3); // round1 of 72.25
+  });
+
+  it("Adjusted body weight: actual 100 / IBW 70 → 82 kg", () => {
+    const r = compute("calc_adjusted_body_weight", {
+      actual_weight_kg: 100,
+      ideal_weight_kg: 70,
+    });
+    expect(r.result).toBe(82);
+    // (100 - 70) / 70 = 42.857% → Math.round = 43%
+    expect(r.interpretation.band).toContain("43% above IBW");
+  });
+
+  it("Adjusted body weight: actual ≤ IBW returns actual unchanged", () => {
+    const r = compute("calc_adjusted_body_weight", {
+      actual_weight_kg: 65,
+      ideal_weight_kg: 70,
+    });
+    expect(r.result).toBe(65);
+    expect(r.interpretation.band).toContain("no adjustment");
+  });
+
+  it("FENa: U_Na 10 / S_Cr 2.0 / S_Na 140 / U_Cr 80 → 0.18% (prerenal)", () => {
+    const r = compute("calc_fena", {
+      serum_creatinine_mg_dl: 2.0,
+      serum_sodium_mmol_l: 140,
+      urine_creatinine_mg_dl: 80,
+      urine_sodium_mmol_l: 10,
+    });
+    expect(r.result).toBe(0.18);
+    expect(r.interpretation.band).toContain("prerenal");
+  });
+
+  it("FENa: U_Na 60 / S_Cr 3.0 / S_Na 140 / U_Cr 30 → 4.29% (ATN)", () => {
+    const r = compute("calc_fena", {
+      serum_creatinine_mg_dl: 3.0,
+      serum_sodium_mmol_l: 140,
+      urine_creatinine_mg_dl: 30,
+      urine_sodium_mmol_l: 60,
+    });
+    expect(r.result).toBe(4.29);
+    expect(r.interpretation.band).toContain("intrinsic");
+  });
+
+  it("Free water deficit: 70yo male / 80 kg / Na 155 → 4.3 L", () => {
+    const r = compute("calc_free_water_deficit", {
+      age_y: 70,
+      sex: "M",
+      weight_kg: 80,
+      sodium_mmol_l: 155,
+    });
+    // 0.5 (elderly male TBW) × 80 × (155/140 - 1) = 0.5 × 80 × 0.1071 = 4.29 → round1 = 4.3
+    expect(r.result).toBe(4.3);
+  });
+
+  it("Free water deficit: 30yo female / 60 kg / Na 150 → 2.1 L", () => {
+    const r = compute("calc_free_water_deficit", {
+      age_y: 30,
+      sex: "F",
+      weight_kg: 60,
+      sodium_mmol_l: 150,
+    });
+    // 0.5 (adult female) × 60 × (150/140 - 1) = 30 × 0.0714 = 2.14 → 2.1
+    expect(r.result).toBe(2.1);
+  });
+
+  it("Maintenance fluids: 8 kg infant → 32 mL/hr", () => {
+    const r = compute("calc_maintenance_fluids", { weight_kg: 8 });
+    expect(r.result).toBe(32);
+  });
+
+  it("Maintenance fluids: 15 kg child → 50 mL/hr", () => {
+    const r = compute("calc_maintenance_fluids", { weight_kg: 15 });
+    expect(r.result).toBe(50);
+  });
+
+  it("Maintenance fluids: 70 kg adult → 110 mL/hr", () => {
+    const r = compute("calc_maintenance_fluids", { weight_kg: 70 });
+    expect(r.result).toBe(110);
+  });
+
+  it("MDRD GFR: 60yo non-Black male, Cr 1.0 → 76 mL/min/1.73m²", () => {
+    // 175 × 1.0^-1.154 × 60^-0.203 × 1 × 1 = 175 / 60^0.203 = 175 / 2.296 = 76.22 → 76
+    const r = compute("calc_mdrd_gfr", {
+      age_y: 60,
+      sex: "M",
+      serum_creatinine_mg_dl: 1.0,
+    });
+    expect(r.result).toBe(76);
+    expect(r.warnings?.join(" ")).toContain("CKD-EPI 2021");
+  });
+
+  it("MDRD GFR: 50yo Black female, Cr 1.5, race coeff ON → 45", () => {
+    // 175 × 1.5^-1.154 × 50^-0.203 × 0.742 × 1.212 = 45.4 → 45
+    const r = compute("calc_mdrd_gfr", {
+      age_y: 50,
+      sex: "F",
+      serum_creatinine_mg_dl: 1.5,
+      apply_black_race_coefficient: true,
+    });
+    expect(r.result).toBe(45);
+  });
+
+  it("MDRD GFR: race coefficient defaults OFF (NKF/ASN 2021)", () => {
+    // Without race coefficient: 175 × 1.5^-1.154 × 50^-0.203 × 0.742 = 37.5 → 37
+    const r = compute("calc_mdrd_gfr", {
+      age_y: 50,
+      sex: "F",
+      serum_creatinine_mg_dl: 1.5,
+    });
+    expect(r.result).toBe(37);
+  });
+});
+
+describe("MedCalc-Bench tier-2: hepatology", () => {
+  it("FIB-4: 55yo / AST 50 / ALT 40 / plt 200 → ~2.17 (indeterminate, AASLD flag for <65)", () => {
+    const r = compute("calc_fib4", {
+      age_y: 55,
+      ast_u_l: 50,
+      alt_u_l: 40,
+      platelet_count_10e9_per_l: 200,
+    });
+    expect(r.result).toBeCloseTo(2.17, 1);
+    expect(r.interpretation.band).toContain("indeterminate");
+    expect(r.interpretation.detail).toContain("Refer to hepatology"); // ≥1.3 for age <65
+  });
+
+  it("FIB-4: 70yo / AST 80 / ALT 30 / plt 100 → high probability advanced fibrosis", () => {
+    const r = compute("calc_fib4", {
+      age_y: 70,
+      ast_u_l: 80,
+      alt_u_l: 30,
+      platelet_count_10e9_per_l: 100,
+    });
+    expect(r.result).toBeCloseTo(10.22, 1);
+    expect(r.interpretation.band).toContain("high");
+  });
+});
+
+describe("MedCalc-Bench tier-3: neurology / infectious / critical-care lookups", () => {
+  it("GCS: spontaneous eyes, oriented, obeys → 15", () => {
+    const r = compute("calc_gcs", {
+      best_eye_response: "spontaneous",
+      best_verbal_response: "oriented",
+      best_motor_response: "obeys_commands",
+    });
+    expect(r.result).toBe(15);
+    expect(r.interpretation.band).toContain("mild");
+  });
+
+  it("GCS: to pain, incomprehensible, extension → 6 (severe)", () => {
+    const r = compute("calc_gcs", {
+      best_eye_response: "to_pain",
+      best_verbal_response: "incomprehensible_sounds",
+      best_motor_response: "extension_to_pain",
+    });
+    expect(r.result).toBe(6);
+    expect(r.interpretation.band).toContain("severe");
+  });
+
+  it("GCS: 9 lands in moderate band", () => {
+    const r = compute("calc_gcs", {
+      best_eye_response: "to_voice", // 3
+      best_verbal_response: "confused", // 4
+      best_motor_response: "withdraws_from_pain", // 4 — wait that's 11
+    });
+    expect(r.result).toBe(11);
+    expect(r.interpretation.band).toContain("moderate");
+  });
+
+  it("SIRS: T 38.5, HR 110, RR 24, WBC 15k → 4 met (positive)", () => {
+    const r = compute("calc_sirs", {
+      temperature_c: 38.5,
+      heart_rate_bpm: 110,
+      respiratory_rate_per_min: 24,
+      wbc_per_mm3: 15000,
+    });
+    expect(r.result).toBe(4);
+    expect(r.interpretation.band).toContain("positive");
+  });
+
+  it("SIRS: T 37, HR 85, RR 18, WBC 8k → 0 met (negative)", () => {
+    const r = compute("calc_sirs", {
+      temperature_c: 37,
+      heart_rate_bpm: 85,
+      respiratory_rate_per_min: 18,
+      wbc_per_mm3: 8000,
+    });
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("negative");
+  });
+
+  it("SIRS: PaCO2 < 32 satisfies respiratory criterion alternative to RR", () => {
+    const r = compute("calc_sirs", {
+      temperature_c: 37,
+      heart_rate_bpm: 85,
+      paco2_mm_hg: 28,
+      wbc_per_mm3: 8000,
+    });
+    expect(r.result).toBe(1); // only PaCO2 criterion met
+  });
+
+  it("SIRS: bands > 10% satisfies WBC criterion alternative", () => {
+    const r = compute("calc_sirs", {
+      temperature_c: 37,
+      heart_rate_bpm: 85,
+      respiratory_rate_per_min: 18,
+      wbc_per_mm3: 8000,
+      bands_percent: 15,
+    });
+    expect(r.result).toBe(1);
+  });
+
+  it("HEART: 45yo male, moderate hx, normal ECG, 1 RF, troponin normal → 3 (low)", () => {
+    const r = compute("calc_heart_score", {
+      history: "moderately_suspicious", // 1
+      ecg: "normal", // 0
+      age_y: 45, // 1
+      risk_factors_count: 1, // 1
+      atherosclerotic_disease_history: false,
+      initial_troponin: "normal", // 0
+    });
+    expect(r.result).toBe(3);
+    expect(r.interpretation.band).toContain("low risk");
+  });
+
+  it("HEART: 68yo female, prior MI, highly suspicious, ST depression, trop 2× → 9 (high)", () => {
+    const r = compute("calc_heart_score", {
+      history: "highly_suspicious", // 2
+      ecg: "significant_st_deviation", // 2
+      age_y: 68, // 2
+      risk_factors_count: 0,
+      atherosclerotic_disease_history: true, // forces RF to 2
+      initial_troponin: "1_to_3_times_normal", // 1
+    });
+    expect(r.result).toBe(9);
+    expect(r.interpretation.band).toContain("high risk");
+  });
+
+  it("HEART: atherosclerotic history forces RF sub-score to 2 even with 0 RFs", () => {
+    const r = compute("calc_heart_score", {
+      history: "slightly_suspicious",
+      ecg: "normal",
+      age_y: 30,
+      risk_factors_count: 0,
+      atherosclerotic_disease_history: true, // RF still scores 2
+      initial_troponin: "normal",
+    });
+    // 0 + 0 + 0 + 2 + 0 = 2
+    expect(r.result).toBe(2);
+  });
+
+  it("Centor: 8yo, exudate, nodes, T 38.5, no cough → 5 (very high)", () => {
+    const r = compute("calc_centor", {
+      age_y: 8,
+      tonsillar_exudate_or_swelling: true,
+      tender_anterior_cervical_adenopathy: true,
+      temperature_c: 38.5,
+      cough_absent: true,
+    });
+    expect(r.result).toBe(5);
+    expect(r.interpretation.band).toContain("very high");
+  });
+
+  it("Centor: 50yo, no exudate / nodes, T 37.5, with cough → −1 (very low)", () => {
+    const r = compute("calc_centor", {
+      age_y: 50,
+      tonsillar_exudate_or_swelling: false,
+      tender_anterior_cervical_adenopathy: false,
+      temperature_c: 37.5,
+      cough_absent: false,
+    });
+    expect(r.result).toBe(-1);
+    expect(r.interpretation.band).toContain("very low");
+  });
+
+  it("FeverPAIN: all 5 criteria → 5 (high probability)", () => {
+    const r = compute("calc_feverpain", {
+      fever_in_past_24h: true,
+      purulent_tonsils: true,
+      attended_within_3_days_of_onset: true,
+      severely_inflamed_tonsils: true,
+      cough_or_coryza_absent: true,
+    });
+    expect(r.result).toBe(5);
+    expect(r.interpretation.band).toContain("high probability");
+  });
+
+  it("FeverPAIN: 0 criteria → 0 (low probability)", () => {
+    const r = compute("calc_feverpain", {
+      fever_in_past_24h: false,
+      purulent_tonsils: false,
+      attended_within_3_days_of_onset: false,
+      severely_inflamed_tonsils: false,
+      cough_or_coryza_absent: false,
+    });
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("low probability");
+  });
+});
+
+describe("MedCalc-Bench tier-2: endocrinology", () => {
+  it("HOMA-IR: insulin 10 / glucose 100 → 2.47 (normal)", () => {
+    const r = compute("calc_homa_ir", {
+      fasting_insulin_uIU_ml: 10,
+      fasting_glucose_mg_dl: 100,
+    });
+    expect(r.result).toBe(2.47);
+    expect(r.interpretation.band).toContain("normal");
+  });
+
+  it("HOMA-IR: insulin 25 / glucose 130 → 8.02 (resistance)", () => {
+    const r = compute("calc_homa_ir", {
+      fasting_insulin_uIU_ml: 25,
+      fasting_glucose_mg_dl: 130,
+    });
+    expect(r.result).toBe(8.02);
+    expect(r.interpretation.band).toContain("resistance");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* MedCalc-Bench tier-4: RCRI / Child-Pugh / Glasgow-Blatchford / delta family */
+/* -------------------------------------------------------------------------- */
+
+describe("MedCalc-Bench tier-4: RCRI / Child-Pugh / GBS", () => {
+  it("RCRI: AAA + prior MI + prior TIA, Cr 1.1 → 3 (~11% MACE)", () => {
+    const r = compute("calc_rcri", {
+      high_risk_surgery: true,
+      ischemic_heart_disease: true,
+      congestive_heart_failure: false,
+      cerebrovascular_disease: true,
+      insulin_treatment_for_diabetes: false,
+      preoperative_creatinine_mg_dl: 1.1,
+    });
+    expect(r.result).toBe(3);
+    expect(r.interpretation.band).toContain("11%");
+  });
+
+  it("RCRI: lap-chole, no comorbidities → 0 (~0.4%)", () => {
+    const r = compute("calc_rcri", {
+      high_risk_surgery: false,
+      ischemic_heart_disease: false,
+      congestive_heart_failure: false,
+      cerebrovascular_disease: false,
+      insulin_treatment_for_diabetes: false,
+      preoperative_creatinine_mg_dl: 0.9,
+    });
+    expect(r.result).toBe(0);
+  });
+
+  it("RCRI: Cr threshold is >2.0 (strict greater-than)", () => {
+    const r = compute("calc_rcri", {
+      high_risk_surgery: false,
+      ischemic_heart_disease: false,
+      congestive_heart_failure: false,
+      cerebrovascular_disease: false,
+      insulin_treatment_for_diabetes: false,
+      preoperative_creatinine_mg_dl: 2.0, // boundary — should NOT count
+    });
+    expect(r.result).toBe(0);
+  });
+
+  it("Child-Pugh: bili 1.5, alb 3.8, INR 1.4, no ascites/enceph → 5, Class A", () => {
+    const r = compute("calc_child_pugh", {
+      total_bilirubin_mg_dl: 1.5,
+      albumin_g_dl: 3.8,
+      inr: 1.4,
+      ascites: "absent",
+      encephalopathy: "none",
+    });
+    expect(r.result).toBe(5);
+    expect(r.interpretation.band).toContain("Class A");
+  });
+
+  it("Child-Pugh: bili 4, alb 2.5, INR 2.5, moderate ascites, grade 3 → 15, Class C", () => {
+    const r = compute("calc_child_pugh", {
+      total_bilirubin_mg_dl: 4.0,
+      albumin_g_dl: 2.5,
+      inr: 2.5,
+      ascites: "moderate",
+      encephalopathy: "grade_3_4",
+    });
+    expect(r.result).toBe(15);
+    expect(r.interpretation.band).toContain("Class C");
+  });
+
+  it("GBS: 50yo male, BUN 15, Hgb 14, SBP 130, pulse 80, all neg → 0 (very low)", () => {
+    const r = compute("calc_glasgow_blatchford", {
+      sex: "M",
+      bun_mg_dl: 15,
+      hemoglobin_g_dl: 14,
+      systolic_bp_mm_hg: 130,
+      pulse_bpm: 80,
+      melena_present: false,
+      syncope: false,
+      liver_disease_history: false,
+      cardiac_failure: false,
+    });
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("very low");
+  });
+
+  it("GBS: 65yo female, BUN 30, Hgb 9, SBP 100, pulse 110, +melena +syncope +liver → 17 (high)", () => {
+    const r = compute("calc_glasgow_blatchford", {
+      sex: "F",
+      bun_mg_dl: 30,
+      hemoglobin_g_dl: 9,
+      systolic_bp_mm_hg: 100,
+      pulse_bpm: 110,
+      melena_present: true,
+      syncope: true,
+      liver_disease_history: true,
+      cardiac_failure: false,
+    });
+    // BUN 30 (28<30<70) = 4 + Hgb 9 F = 6 + SBP 100 = 1 + pulse ≥100 = 1 + melena 1 + syncope 2 + liver 2 = 17
+    expect(r.result).toBe(17);
+    expect(r.interpretation.band).toContain("high");
+  });
+});
+
+describe("MedCalc-Bench tier-4: acid-base delta family", () => {
+  it("Delta gap: Na 140 / Cl 100 / HCO₃ 24 → AG 16, Δgap 4 (pure AG)", () => {
+    const r = compute("calc_delta_gap", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 100,
+      bicarbonate_mmol_l: 24,
+    });
+    expect(r.result).toBe(4);
+    expect(r.interpretation.band).toContain("pure anion-gap");
+  });
+
+  it("Delta gap: Na 140 / Cl 90 / HCO₃ 14 → Δgap 24 (coexisting alkalosis)", () => {
+    const r = compute("calc_delta_gap", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 90,
+      bicarbonate_mmol_l: 14,
+    });
+    expect(r.result).toBe(24);
+    expect(r.interpretation.band).toContain("coexisting metabolic alkalosis");
+  });
+
+  it("Delta ratio: AG 20, HCO₃ 16 → 1.0 (pure AG acidosis)", () => {
+    // Na 140 Cl 104 HCO3 16 → AG = 20
+    const r = compute("calc_delta_ratio", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 104,
+      bicarbonate_mmol_l: 16,
+    });
+    expect(r.result).toBe(1);
+    expect(r.interpretation.band).toContain("pure anion-gap");
+  });
+
+  it("Delta ratio: HCO₃ ≥ 24 returns undefined band", () => {
+    const r = compute("calc_delta_ratio", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 100,
+      bicarbonate_mmol_l: 24,
+    });
+    expect(r.interpretation.band).toContain("undefined");
+  });
+
+  it("Albumin-corrected AG: AG 20 + albumin 2.0 → 25", () => {
+    // Na 140 Cl 100 HCO3 20 → AG 20; +2.5×2 = 25
+    const r = compute("calc_albumin_corrected_anion_gap", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 100,
+      bicarbonate_mmol_l: 20,
+      albumin_g_dl: 2.0,
+    });
+    expect(r.result).toBe(25);
+    expect(r.interpretation.band).toContain("elevated");
+  });
+
+  it("Albumin-corrected AG: albumin 4.0 → no correction", () => {
+    // Na 140 Cl 100 HCO3 24 → AG 16
+    const r = compute("calc_albumin_corrected_anion_gap", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 100,
+      bicarbonate_mmol_l: 24,
+      albumin_g_dl: 4.0,
+    });
+    expect(r.result).toBe(16);
+  });
+
+  it("Albumin-corrected delta gap: AG_corr 25 → Δgap_corr 13 (alkalosis)", () => {
+    const r = compute("calc_albumin_corrected_delta_gap", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 100,
+      bicarbonate_mmol_l: 20,
+      albumin_g_dl: 2.0,
+    });
+    expect(r.result).toBe(13);
+    expect(r.interpretation.band).toContain("coexisting metabolic alkalosis");
+  });
+
+  it("Albumin-corrected delta ratio: HCO₃ ≥ 24 returns undefined", () => {
+    const r = compute("calc_albumin_corrected_delta_ratio", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 100,
+      bicarbonate_mmol_l: 24,
+      albumin_g_dl: 3.0,
+    });
+    expect(r.interpretation.band).toContain("undefined");
+  });
 });
 
 describe("Berlin ARDS (tree-class)", () => {

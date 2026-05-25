@@ -5,6 +5,10 @@
 import { cardiologyCalculators } from "./calculators/cardiology.js";
 import { compositeCalculators } from "./calculators/composite.js";
 import { criticalCareCalculators } from "./calculators/critical-care.js";
+import { endocrinologyCalculators } from "./calculators/endocrinology.js";
+import { hepatologyCalculators } from "./calculators/hepatology.js";
+import { infectiousDiseaseCalculators } from "./calculators/infectious-disease.js";
+import { neurologyCalculators } from "./calculators/neurology.js";
 import { pulmonaryVteCalculators } from "./calculators/pulmonary-vte.js";
 import { renalCalculators } from "./calculators/renal.js";
 import type { CalculatorDef } from "./framework.js";
@@ -15,6 +19,10 @@ export const ALL_CALCULATORS: CalculatorDef[] = [
   ...cardiologyCalculators,
   ...pulmonaryVteCalculators,
   ...criticalCareCalculators,
+  ...hepatologyCalculators,
+  ...endocrinologyCalculators,
+  ...neurologyCalculators,
+  ...infectiousDiseaseCalculators,
   ...compositeCalculators,
 ];
 

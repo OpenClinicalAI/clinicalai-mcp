@@ -389,4 +389,291 @@ const map = defineCalculator({
 
 /* -------------------------------------------------------------------------- */
 
-export const cardiologyCalculators: CalculatorDef[] = [chadsVasc, hasBled, grace, timiNstemi, map];
+const ldlFriedewald = defineCalculator({
+  name: "calc_ldl_friedewald",
+  title: "LDL Cholesterol (Friedewald formula)",
+  domain: "cardiology",
+  complexity: "formula",
+  description:
+    "Calculate LDL cholesterol from total cholesterol, HDL, and triglycerides using the Friedewald formula. Invalid when triglycerides > 400 mg/dL — use Martin-Hopkins or Sampson (or direct LDL) at high triglycerides.",
+  inputSchema: {
+    total_cholesterol_mg_dl: z.number().positive().describe("Total cholesterol, mg/dL."),
+    hdl_mg_dl: z.number().positive().describe("HDL cholesterol, mg/dL."),
+    triglycerides_mg_dl: z.number().positive().describe("Triglycerides, mg/dL (fasting)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Friedewald WT, Levy RI, Fredrickson DS. Estimation of the concentration of low-density lipoprotein cholesterol in plasma, without use of the preparative ultracentrifuge. Clin Chem. 1972;18(6):499-502.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/4337382/",
+      publisher: "Clinical Chemistry",
+    }),
+    formulaSource({
+      title:
+        "Grundy SM, Stone NJ, Bailey AL, et al. 2018 AHA/ACC Guideline on the Management of Blood Cholesterol. J Am Coll Cardiol. 2019;73(24):e285-e350.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/30586774/",
+      publisher: "Journal of the American College of Cardiology",
+    }),
+  ],
+  compute: (args) => {
+    const ldl = Math.round(
+      args.total_cholesterol_mg_dl - args.hdl_mg_dl - args.triglycerides_mg_dl / 5,
+    );
+    let band: string;
+    let detail: string;
+    if (ldl < 70) {
+      band = "optimal (<70)";
+      detail =
+        "LDL < 70 mg/dL — optimal range, particularly for ASCVD secondary prevention and high-risk primary prevention per 2018 AHA/ACC cholesterol guideline.";
+    } else if (ldl < 100) {
+      band = "optimal-to-near-optimal (70–99)";
+      detail = "LDL within the optimal range for most adults.";
+    } else if (ldl < 130) {
+      band = "near-optimal (100–129)";
+      detail = "Near-optimal LDL; lifestyle and risk-factor management indicated.";
+    } else if (ldl < 160) {
+      band = "borderline high (130–159)";
+      detail = "Borderline-high LDL — review ASCVD risk and consider pharmacologic therapy.";
+    } else if (ldl < 190) {
+      band = "high (160–189)";
+      detail = "High LDL — statin therapy indicated per 2018 cholesterol guideline.";
+    } else {
+      band = "very high (≥190)";
+      detail =
+        "Very high LDL (≥190 mg/dL) — high-intensity statin therapy indicated. Consider familial-hypercholesterolemia evaluation if early/severe.";
+    }
+    return {
+      result: ldl,
+      unit: "mg/dL",
+      interpretation: { band, detail },
+      inputs: { ...args },
+      warnings:
+        args.triglycerides_mg_dl > 400
+          ? [
+              "Triglycerides > 400 mg/dL — Friedewald is invalid in this range. Use Martin-Hopkins, Sampson-NIH, or direct-measured LDL.",
+            ]
+          : args.triglycerides_mg_dl > 200
+            ? [
+                "Triglycerides > 200 mg/dL — Friedewald accuracy degrades; consider Martin-Hopkins or direct LDL for treatment-decision-grade precision.",
+              ]
+            : undefined,
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+const heartScore = defineCalculator({
+  name: "calc_heart_score",
+  title: "HEART Score for Major Cardiac Events",
+  domain: "cardiology",
+  complexity: "lookup",
+  description:
+    "Risk-stratify chest-pain patients in the emergency department for 6-week major adverse cardiac events (MACE). Score 0–10 across five components: History, ECG, Age, Risk factors, Troponin.",
+  inputSchema: {
+    history: z
+      .enum(["slightly_suspicious", "moderately_suspicious", "highly_suspicious"])
+      .describe(
+        "Clinician gestalt about the history: slightly (0), moderately (1), highly suspicious (2).",
+      ),
+    ecg: z
+      .enum(["normal", "non_specific_repolarization", "significant_st_deviation"])
+      .describe(
+        "ECG findings: normal (0), non-specific repolarization disturbance (1), significant ST deviation (2).",
+      ),
+    age_y: z.number().nonnegative().describe("Age in years."),
+    risk_factors_count: z
+      .number()
+      .int()
+      .nonnegative()
+      .describe(
+        "Count of cardiovascular risk factors: hypertension, hypercholesterolemia, diabetes, obesity (BMI >30), current smoker or stopped <3 mo, family history of CVD before 65, history of atherosclerotic disease.",
+      ),
+    atherosclerotic_disease_history: z
+      .boolean()
+      .describe(
+        "History of atherosclerotic disease (prior MI, PCI / CABG, CVA / TIA, peripheral artery disease). Forces the Risk-Factors sub-score to 2 regardless of count.",
+      ),
+    initial_troponin: z
+      .enum(["normal", "1_to_3_times_normal", "over_3_times_normal"])
+      .describe(
+        "Initial troponin: ≤normal (0), 1–3× normal upper limit (1), >3× normal upper limit (2).",
+      ),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Six AJ, Backus BE, Kelder JC. Chest pain in the emergency room: value of the HEART score. Neth Heart J. 2008;16(6):191-196.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/18665203/",
+      publisher: "Netherlands Heart Journal",
+    }),
+    formulaSource({
+      title:
+        "Backus BE, Six AJ, Kelder JC, et al. A prospective validation of the HEART score for chest pain patients at the emergency department. Int J Cardiol. 2013;168(3):2153-2158.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/23465250/",
+      publisher: "International Journal of Cardiology",
+    }),
+  ],
+  compute: (args) => {
+    const historyPts =
+      args.history === "highly_suspicious" ? 2 : args.history === "moderately_suspicious" ? 1 : 0;
+    const ecgPts =
+      args.ecg === "significant_st_deviation"
+        ? 2
+        : args.ecg === "non_specific_repolarization"
+          ? 1
+          : 0;
+    const agePts = args.age_y >= 65 ? 2 : args.age_y >= 45 ? 1 : 0;
+    const rfPts =
+      args.atherosclerotic_disease_history || args.risk_factors_count >= 3
+        ? 2
+        : args.risk_factors_count >= 1
+          ? 1
+          : 0;
+    const tropPts =
+      args.initial_troponin === "over_3_times_normal"
+        ? 2
+        : args.initial_troponin === "1_to_3_times_normal"
+          ? 1
+          : 0;
+
+    const breakdown = [
+      { component: "History", value: historyPts },
+      { component: "ECG", value: ecgPts },
+      { component: "Age", value: agePts },
+      { component: "Risk factors", value: rfPts },
+      { component: "Initial troponin", value: tropPts },
+    ];
+    const score = sumBreakdown(breakdown);
+
+    let band: string;
+    let detail: string;
+    if (score <= 3) {
+      band = "low risk (0–3) — ~1.7% 6-week MACE";
+      detail =
+        "Low-risk HEART score. The HEART Pathway (Backus 2013) supports early ED disposition with shared decision-making; institutional pathways vary on serial troponin requirements before discharge.";
+    } else if (score <= 6) {
+      band = "moderate risk (4–6) — ~16.6% 6-week MACE";
+      detail =
+        "Moderate-risk HEART score. Hospital observation / further evaluation typically indicated — serial troponin, stress testing, or coronary CT angiography per institutional protocol.";
+    } else {
+      band = "high risk (7–10) — ~50.1% 6-week MACE";
+      detail =
+        "High-risk HEART score. Admit for early invasive evaluation; consider cardiology consultation. Disposition decisions belong to the treating team — these MACE rates are derived population averages, not patient-level predictions.";
+    }
+
+    return {
+      result: score,
+      unit: "points",
+      interpretation: { band, detail },
+      breakdown,
+      inputs: { ...args },
+      warnings: [
+        "MACE rates from Backus 2013 validation. The 'discharge low-risk' decision is part of the HEART Pathway clinical algorithm, not a direct claim of the original Six 2008 paper. Not validated in patients <21 y.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+const rcri = defineCalculator({
+  name: "calc_rcri",
+  title: "Revised Cardiac Risk Index (Lee)",
+  domain: "cardiology",
+  complexity: "lookup",
+  description:
+    "Lee's RCRI — 30-day major cardiac complication risk in elective non-cardiac surgery. Six binary criteria; the risk bands are 0=0.4%, 1=0.9%, 2=6.6%, ≥3=11%. The 2014 ACC/AHA perioperative guideline uses 1% MACE as the elevated-risk threshold.",
+  inputSchema: {
+    high_risk_surgery: z
+      .boolean()
+      .describe(
+        "High-risk surgery: intraperitoneal, intrathoracic, or suprainguinal vascular (per Lee 1999).",
+      ),
+    ischemic_heart_disease: z
+      .boolean()
+      .describe(
+        "History of ischemic heart disease (prior MI, positive ETT, current ischemic chest pain, nitrate therapy, ECG with pathological Q waves).",
+      ),
+    congestive_heart_failure: z
+      .boolean()
+      .describe(
+        "History of CHF (pulmonary edema, bilateral rales/S3, PND, or CXR pulmonary vascular redistribution).",
+      ),
+    cerebrovascular_disease: z.boolean().describe("History of TIA or stroke."),
+    insulin_treatment_for_diabetes: z
+      .boolean()
+      .describe("Preoperative insulin treatment for diabetes."),
+    preoperative_creatinine_mg_dl: z
+      .number()
+      .positive()
+      .describe("Preoperative serum creatinine, mg/dL (counts if >2.0)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Lee TH, Marcantonio ER, Mangione CM, et al. Derivation and prospective validation of a simple index for prediction of cardiac risk of major noncardiac surgery. Circulation. 1999;100(10):1043-1049.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/10477528/",
+      publisher: "Circulation",
+    }),
+  ],
+  compute: (args) => {
+    const creatHigh = args.preoperative_creatinine_mg_dl > 2.0;
+    const breakdown = [
+      { component: "High-risk surgery", value: args.high_risk_surgery ? 1 : 0 },
+      { component: "Ischemic heart disease", value: args.ischemic_heart_disease ? 1 : 0 },
+      { component: "Congestive heart failure", value: args.congestive_heart_failure ? 1 : 0 },
+      { component: "Cerebrovascular disease", value: args.cerebrovascular_disease ? 1 : 0 },
+      {
+        component: "Insulin treatment for diabetes",
+        value: args.insulin_treatment_for_diabetes ? 1 : 0,
+      },
+      { component: "Preoperative creatinine > 2.0 mg/dL", value: creatHigh ? 1 : 0 },
+    ];
+    const score = sumBreakdown(breakdown);
+
+    let band: string;
+    let detail: string;
+    if (score === 0) {
+      band = "0 factors — 30-day MACE ~0.4%";
+      detail =
+        "Below the 1% ACC/AHA elevated-risk threshold; routine perioperative cardiac assessment generally sufficient.";
+    } else if (score === 1) {
+      band = "1 factor — 30-day MACE ~0.9%";
+      detail =
+        "Just below the 1% elevated-risk threshold. Use functional-capacity assessment per ACC/AHA 2014 algorithm.";
+    } else if (score === 2) {
+      band = "2 factors — 30-day MACE ~6.6%";
+      detail =
+        "Elevated risk per ACC/AHA 2014 — consider functional capacity, stress testing, and perioperative β-blocker / statin per institutional protocol.";
+    } else {
+      band = `${score} factors — 30-day MACE ~11%`;
+      detail =
+        "High perioperative cardiac risk. Multidisciplinary review; functional-capacity assessment, possible non-invasive stress testing, and possible procedural delay / risk-modification discussion.";
+    }
+
+    return {
+      result: score,
+      unit: "factors",
+      interpretation: { band, detail },
+      breakdown,
+      inputs: { ...args },
+      warnings: [
+        "RCRI is validated in elective non-cardiac surgery in patients ≥50; it underperforms in emergency surgery and is not designed for cardiac surgery. The original paper publishes complication rates, not a go/no-go threshold — that lives in the downstream ACC/AHA 2014 perioperative guideline.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+export const cardiologyCalculators: CalculatorDef[] = [
+  chadsVasc,
+  hasBled,
+  grace,
+  timiNstemi,
+  map,
+  ldlFriedewald,
+  heartScore,
+  rcri,
+];

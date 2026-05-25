@@ -525,4 +525,90 @@ const berlinArds = defineCalculator({
 
 /* -------------------------------------------------------------------------- */
 
-export const criticalCareCalculators: CalculatorDef[] = [apacheII, sofa, qsofa, berlinArds];
+const sirs = defineCalculator({
+  name: "calc_sirs",
+  title: "SIRS Criteria (ACCP/SCCM 1992)",
+  domain: "critical-care",
+  complexity: "lookup",
+  description:
+    "Systemic Inflammatory Response Syndrome criteria — count of four criteria (temperature, heart rate, respiratory rate or PaCO₂, white blood cell count or bands). ≥2 = SIRS positive. Legacy: deprecated for sepsis screening by Sepsis-3 (2016) in favor of qSOFA + organ-dysfunction criteria.",
+  inputSchema: {
+    temperature_c: z.number().describe("Body temperature in °C."),
+    heart_rate_bpm: z.number().positive().describe("Heart rate in beats per minute."),
+    respiratory_rate_per_min: z
+      .number()
+      .nonnegative()
+      .optional()
+      .describe("Respiratory rate, breaths per minute (counts if >20)."),
+    paco2_mm_hg: z
+      .number()
+      .positive()
+      .optional()
+      .describe(
+        "Arterial PaCO₂ in mmHg (counts if <32; alternative to respiratory-rate criterion).",
+      ),
+    wbc_per_mm3: z
+      .number()
+      .nonnegative()
+      .describe("White blood cell count, cells/mm³ (counts if >12,000 or <4,000)."),
+    bands_percent: z
+      .number()
+      .nonnegative()
+      .optional()
+      .describe("Band forms as percentage of WBC (counts toward WBC criterion if >10%)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Bone RC, Balk RA, Cerra FB, et al. Definitions for sepsis and organ failure and guidelines for the use of innovative therapies in sepsis. The ACCP/SCCM Consensus Conference Committee. Chest. 1992;101(6):1644-1655.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/1303622/",
+      publisher: "Chest",
+    }),
+    formulaSource({
+      title:
+        "Singer M, Deutschman CS, Seymour CW, et al. The Third International Consensus Definitions for Sepsis and Septic Shock (Sepsis-3). JAMA. 2016;315(8):801-810.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/26903335/",
+      publisher: "JAMA",
+    }),
+  ],
+  compute: (args) => {
+    const tempMet = args.temperature_c > 38 || args.temperature_c < 36;
+    const hrMet = args.heart_rate_bpm > 90;
+    const respMet =
+      (args.respiratory_rate_per_min !== undefined && args.respiratory_rate_per_min > 20) ||
+      (args.paco2_mm_hg !== undefined && args.paco2_mm_hg < 32);
+    const wbcMet =
+      args.wbc_per_mm3 > 12000 ||
+      args.wbc_per_mm3 < 4000 ||
+      (args.bands_percent !== undefined && args.bands_percent > 10);
+
+    const breakdown = [
+      { component: "Temperature >38°C or <36°C", value: tempMet ? 1 : 0 },
+      { component: "Heart rate >90", value: hrMet ? 1 : 0 },
+      { component: "RR >20 or PaCO₂ <32", value: respMet ? 1 : 0 },
+      { component: "WBC >12k or <4k or >10% bands", value: wbcMet ? 1 : 0 },
+    ];
+    const count = sumBreakdown(breakdown);
+    const positive = count >= 2;
+
+    return {
+      result: count,
+      unit: "criteria",
+      interpretation: {
+        band: positive ? `SIRS positive (${count}/4)` : `SIRS negative (${count}/4)`,
+        detail: positive
+          ? "≥2 SIRS criteria met. SIRS + a known or suspected infection was the legacy 'sepsis' definition. Sepsis-3 (Singer 2016) replaced SIRS-based screening with qSOFA + organ-dysfunction criteria — do not diagnose sepsis on SIRS alone in 2026 practice."
+          : "<2 SIRS criteria. Continue to monitor; SIRS is a low-bar non-specific marker of systemic inflammation, not a sepsis-specific tool.",
+      },
+      breakdown,
+      inputs: { ...args },
+      warnings: [
+        "SIRS was deprecated for sepsis screening by the Sepsis-3 consensus (Singer 2016, PMID 26903338) — qSOFA / SOFA / Phoenix Sepsis Score (pediatrics) are the current standards. SIRS is kept for back-compat with older protocols.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+export const criticalCareCalculators: CalculatorDef[] = [apacheII, sofa, qsofa, berlinArds, sirs];

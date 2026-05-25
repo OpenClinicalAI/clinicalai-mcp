@@ -545,6 +545,683 @@ const serumOsmolality = defineCalculator({
 
 /* -------------------------------------------------------------------------- */
 
+const targetWeight = defineCalculator({
+  name: "calc_target_weight",
+  title: "Target Body Weight (BMI-targeted)",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Compute the body weight that corresponds to a given target BMI for a patient's height. Returns a numeric target only — pair with a behavior-change tool and dietitian referral in clinical use.",
+  inputSchema: {
+    target_bmi: z.number().positive().describe("Target BMI in kg/m² (typically 18.5–30)."),
+    height_m: z.number().positive().describe("Height in meters."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "World Health Organization. Obesity: preventing and managing the global epidemic. WHO Technical Report Series 894, Geneva, 2000. (BMI categories.)",
+      url: "https://iris.who.int/handle/10665/42330",
+      publisher: "WHO",
+    }),
+  ],
+  compute: (args) => {
+    const target = round1(args.target_bmi * args.height_m * args.height_m);
+    return {
+      result: target,
+      unit: "kg",
+      interpretation: {
+        band: `${target} kg at BMI ${args.target_bmi}`,
+        detail:
+          "Numeric target only — operational formula, not a validated clinical goal-setter. Pair with patient context, behavior-change support, and a dietitian referral.",
+      },
+      inputs: { ...args },
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+const adjustedBodyWeight = defineCalculator({
+  name: "calc_adjusted_body_weight",
+  title: "Adjusted Body Weight",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Adjusted body weight = IBW + 0.4 × (actual − IBW). Used for aminoglycoside, vancomycin, and some chemotherapy dosing in patients whose actual weight exceeds IBW by >20–30%.",
+  inputSchema: {
+    actual_weight_kg: z.number().positive().describe("Actual measured body weight, kg."),
+    ideal_weight_kg: z
+      .number()
+      .positive()
+      .describe("Ideal body weight in kg (e.g. from calc_ibw_devine)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Pai MP, Paloucek FP. The origin of the 'ideal' body weight equations. Ann Pharmacother. 2000;34(9):1066-1069. (Historical context for adjusted body weight.)",
+      url: "https://pubmed.ncbi.nlm.nih.gov/10852121/",
+      publisher: "Annals of Pharmacotherapy",
+    }),
+  ],
+  compute: (args) => {
+    if (args.actual_weight_kg <= args.ideal_weight_kg) {
+      return {
+        result: args.actual_weight_kg,
+        unit: "kg",
+        interpretation: {
+          band: `${args.actual_weight_kg} kg (no adjustment — use actual)`,
+          detail:
+            "Actual weight is at or below IBW. The adjustment factor is intended for obesity (actual > IBW); return actual unchanged.",
+        },
+        inputs: { ...args },
+      };
+    }
+    const adjusted = round1(
+      args.ideal_weight_kg + 0.4 * (args.actual_weight_kg - args.ideal_weight_kg),
+    );
+    const excessPct = Math.round(
+      ((args.actual_weight_kg - args.ideal_weight_kg) / args.ideal_weight_kg) * 100,
+    );
+    return {
+      result: adjusted,
+      unit: "kg",
+      interpretation: {
+        band: `${adjusted} kg (actual ${excessPct}% above IBW)`,
+        detail:
+          "Adjusted body weight (Pai-Paloucek). Apply only when actual weight exceeds IBW by >20–30% per Pai 2000. Used in aminoglycoside dosing, vancomycin loading, and select chemotherapy protocols.",
+      },
+      inputs: { ...args },
+      warnings:
+        excessPct < 20
+          ? [
+              "Actual weight is less than 20% above IBW — Pai 2000 recommends using actual body weight rather than the adjusted formula in this range.",
+            ]
+          : undefined,
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+const fena = defineCalculator({
+  name: "calc_fena",
+  title: "Fractional Excretion of Sodium (FENa)",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "FENa = (U_Na × S_Cr) / (S_Na × U_Cr) × 100. Differentiates prerenal AKI (FENa < 1%) from intrinsic / ATN (FENa > 2%). Invalidated by loop diuretics — use FE-urea instead.",
+  inputSchema: {
+    serum_creatinine_mg_dl: z.number().positive().describe("Serum creatinine, mg/dL."),
+    serum_sodium_mmol_l: z.number().positive().describe("Serum sodium, mmol/L."),
+    urine_creatinine_mg_dl: z.number().positive().describe("Urine creatinine, mg/dL."),
+    urine_sodium_mmol_l: z.number().positive().describe("Urine sodium, mmol/L."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Espinel CH. The FENa test. Use in the differential diagnosis of acute renal failure. JAMA. 1976;236(6):579-581.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/1255711/",
+      publisher: "JAMA",
+    }),
+  ],
+  compute: (args) => {
+    const fenaValue =
+      Math.round(
+        ((args.urine_sodium_mmol_l * args.serum_creatinine_mg_dl) /
+          (args.serum_sodium_mmol_l * args.urine_creatinine_mg_dl)) *
+          100 *
+          100,
+      ) / 100;
+    let band: string;
+    let detail: string;
+    if (fenaValue < 1) {
+      band = `prerenal pattern (${fenaValue}% < 1%)`;
+      detail =
+        "FENa < 1% suggests preserved tubular sodium reabsorption — typically prerenal AKI (volume depletion, cardiorenal). Exceptions: contrast nephropathy, hepatorenal syndrome, and early glomerulonephritis can produce FENa < 1% despite intrinsic pathology.";
+    } else if (fenaValue > 2) {
+      band = `intrinsic / ATN pattern (${fenaValue}% > 2%)`;
+      detail =
+        "FENa > 2% suggests impaired tubular sodium handling — typically acute tubular necrosis. Pair with urine sediment, BUN/Cr ratio, and clinical context.";
+    } else {
+      band = `indeterminate (${fenaValue}% between 1–2%)`;
+      detail =
+        "FENa in the indeterminate range; clinical correlation needed. Consider FE-urea (more reliable on loop diuretics).";
+    }
+    return {
+      result: fenaValue,
+      unit: "%",
+      interpretation: { band, detail },
+      inputs: { ...args },
+      warnings: [
+        "Loop diuretics artificially elevate FENa — use the fractional excretion of urea (FE-urea) instead in patients on furosemide/torsemide/bumetanide.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+const freeWaterDeficit = defineCalculator({
+  name: "calc_free_water_deficit",
+  title: "Free Water Deficit (Adrogué-Madias)",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Free water deficit in hypernatremia — FWD = TBW% × weight × (Na/140 − 1). Used to calculate the water-replacement volume; correct hypernatremia slowly (≤0.5 mEq/L/hr, ≤10 mEq/L per 24h) to avoid cerebral edema.",
+  inputSchema: {
+    age_y: z.number().nonnegative().describe("Age in years."),
+    sex: z.enum(["M", "F"]).describe("Biological sex."),
+    weight_kg: z.number().positive().describe("Body weight, kg."),
+    sodium_mmol_l: z.number().positive().describe("Serum sodium, mmol/L."),
+  },
+  sources: [
+    formulaSource({
+      title: "Adrogué HJ, Madias NE. Hypernatremia. N Engl J Med. 2000;342(20):1493-1499.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/10816188/",
+      publisher: "New England Journal of Medicine",
+    }),
+  ],
+  compute: (args) => {
+    // Total body water fraction by age and sex.
+    let tbwFraction: number;
+    if (args.age_y < 18) tbwFraction = 0.6;
+    else if (args.age_y >= 65) tbwFraction = args.sex === "F" ? 0.45 : 0.5;
+    else tbwFraction = args.sex === "F" ? 0.5 : 0.6;
+
+    const fwd = round1(tbwFraction * args.weight_kg * (args.sodium_mmol_l / 140 - 1));
+    return {
+      result: fwd,
+      unit: "L",
+      interpretation: {
+        band: `${fwd} L deficit`,
+        detail:
+          "Free-water-replacement volume to return serum sodium to 140 mmol/L. Replace gradually — the rate-of-correction limit is the same as the deficit volume in matters of safety: ≤ 0.5 mEq/L per hour and ≤ 10 mEq/L per 24 hours to avoid cerebral edema. Ongoing losses (urine output, insensible) must be replaced on top of this deficit.",
+      },
+      inputs: { ...args, tbw_fraction: tbwFraction },
+      warnings: [
+        "Adrogué-Madias also publishes a sodium-deficit formula for hyponatremia — these are different scenarios; do not confuse the two.",
+        "TBW fractions are population estimates; obese patients may need a leaner correction. Hemodynamically unstable patients need parallel volume resuscitation.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+const maintenanceFluids = defineCalculator({
+  name: "calc_maintenance_fluids",
+  title: "Maintenance IV Fluid Rate (Holliday-Segar 4-2-1)",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Holliday-Segar 4-2-1 rule for maintenance IV fluid rate by body weight. Returns mL/hr; does not specify composition (sodium-free dextrose-only fluids are no longer recommended for inpatient pediatric maintenance — see Friedman 2018).",
+  inputSchema: {
+    weight_kg: z.number().positive().describe("Body weight in kilograms."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Holliday MA, Segar WE. The maintenance need for water in parenteral fluid therapy. Pediatrics. 1957;19(5):823-832.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/13431307/",
+      publisher: "Pediatrics",
+    }),
+    formulaSource({
+      title:
+        "Friedman JN, Beck CE, DeGroot J, et al. Comparison of Isotonic and Hypotonic Intravenous Maintenance Fluids: A Randomized Clinical Trial. JAMA Pediatr. 2018;172(11):1071-1078.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/30359961/",
+      publisher: "JAMA Pediatrics",
+    }),
+  ],
+  compute: (args) => {
+    let rate: number;
+    if (args.weight_kg < 10) rate = 4 * args.weight_kg;
+    else if (args.weight_kg <= 20) rate = 40 + 2 * (args.weight_kg - 10);
+    else rate = 60 + 1 * (args.weight_kg - 20);
+    rate = round1(rate);
+    return {
+      result: rate,
+      unit: "mL/hr",
+      interpretation: {
+        band: `${rate} mL/hr maintenance`,
+        detail:
+          "Holliday-Segar rate is a starting point for a relatively well, afebrile, non-third-spacing patient. Critical-illness, fever, third-spacing, and ongoing losses all alter the requirement. This tool gives volume, not composition — for inpatient peds, isotonic fluids are preferred over hypotonic per Friedman 2018.",
+      },
+      inputs: { ...args },
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+const mdrdGfr = defineCalculator({
+  name: "calc_mdrd_gfr",
+  title: "MDRD eGFR (4-variable, IDMS-traceable) — legacy",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Legacy MDRD eGFR equation. Deprecated by NKF/ASN (Delgado 2021) in favor of the race-free CKD-EPI 2021 equation (`calc_gfr_ckd_epi`). The race coefficient is configurable and defaults OFF for new use — set it on only when faithfully reproducing legacy EHR reports.",
+  inputSchema: {
+    age_y: z.number().positive().describe("Age in years."),
+    sex: z.enum(["M", "F"]).describe("Biological sex."),
+    serum_creatinine_mg_dl: z
+      .number()
+      .positive()
+      .describe("Serum creatinine, mg/dL (standardized assay)."),
+    apply_black_race_coefficient: z
+      .boolean()
+      .optional()
+      .describe(
+        "Apply the 1.212 Black-race coefficient. Defaults to false (NKF/ASN 2021 recommendation). Only set true when reproducing legacy reports.",
+      ),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Levey AS, Coresh J, Greene T, et al. Using standardized serum creatinine values in the Modification of Diet in Renal Disease Study equation for estimating glomerular filtration rate. Ann Intern Med. 2006;145(4):247-254.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/16908915/",
+      publisher: "Annals of Internal Medicine",
+    }),
+    formulaSource({
+      title:
+        "Delgado C, Baweja M, Crews DC, et al. A unifying approach for GFR estimation: Recommendations of the NKF-ASN Task Force on reassessing the inclusion of race in diagnosing kidney disease. J Am Soc Nephrol. 2022;33(1):216-242.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/34470707/",
+      publisher: "Journal of the American Society of Nephrology",
+    }),
+  ],
+  compute: (args) => {
+    const sexFactor = args.sex === "F" ? 0.742 : 1;
+    const raceFactor = args.apply_black_race_coefficient ? 1.212 : 1;
+    const egfr = Math.round(
+      175 * args.serum_creatinine_mg_dl ** -1.154 * args.age_y ** -0.203 * sexFactor * raceFactor,
+    );
+
+    let band: string;
+    if (egfr >= 90) band = "G1 — normal or high (≥90)";
+    else if (egfr >= 60) band = "G2 — mildly decreased (60–89)";
+    else if (egfr >= 45) band = "G3a — mildly to moderately decreased (45–59)";
+    else if (egfr >= 30) band = "G3b — moderately to severely decreased (30–44)";
+    else if (egfr >= 15) band = "G4 — severely decreased (15–29)";
+    else band = "G5 — kidney failure (<15)";
+
+    return {
+      result: egfr,
+      unit: "mL/min/1.73m²",
+      interpretation: {
+        band,
+        detail:
+          "MDRD underperforms at GFR > 60 (it was derived in a CKD cohort) and has been superseded by CKD-EPI 2021 (`calc_gfr_ckd_epi`). Use MDRD only for back-compat with legacy EHR reports or studies that pre-date the 2021 NKF/ASN recommendation.",
+      },
+      inputs: { ...args },
+      warnings: [
+        "MDRD is the legacy CKD-staging equation. NKF/ASN 2021 (Delgado et al, PMID 34470707) recommends `calc_gfr_ckd_epi` (CKD-EPI 2021, race-free) as the current standard. Race coefficient defaults to OFF; only enable for explicit legacy reproduction.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------------- */
+/* Wrenn / Figge acid-base delta family                                         */
+/* -------------------------------------------------------------------------- */
+
+/** Compute anion gap (no K convention) from the three core inputs. */
+function computeAnionGapValue(sodium: number, chloride: number, bicarbonate: number): number {
+  return sodium - (chloride + bicarbonate);
+}
+
+/** Albumin-corrected AG per Figge 1998. */
+function computeAlbCorrectedAg(ag: number, albumin: number): number {
+  return ag + 2.5 * (4.0 - albumin);
+}
+
+function deltaGapBand(delta: number): { band: string; detail: string } {
+  if (Math.abs(delta) <= 6) {
+    return {
+      band: `pure anion-gap acidosis (Δgap ${delta}, within ±6)`,
+      detail:
+        "Δgap close to 0 — the elevated anion gap accounts for the entire bicarbonate deficit; no coexisting non-AG acidosis or metabolic alkalosis indicated.",
+    };
+  }
+  if (delta > 0) {
+    return {
+      band: `coexisting metabolic alkalosis (Δgap ${delta} > 6)`,
+      detail:
+        "Positive Δgap — the bicarbonate is higher than would be expected for the magnitude of the AG rise, suggesting a coexisting metabolic alkalosis.",
+    };
+  }
+  return {
+    band: `coexisting non-AG (hyperchloremic) metabolic acidosis (Δgap ${delta} < −6)`,
+    detail:
+      "Negative Δgap — the bicarbonate has fallen more than the AG has risen, suggesting a coexisting non-anion-gap (hyperchloremic) metabolic acidosis.",
+  };
+}
+
+function deltaRatioBand(ratio: number): { band: string; detail: string } {
+  if (ratio < 0.4) {
+    return {
+      band: `non-AG / hyperchloremic acidosis (Δratio ${ratio} < 0.4)`,
+      detail:
+        "Pattern suggests a pure non-anion-gap (hyperchloremic) metabolic acidosis — the AG has barely risen relative to the bicarbonate drop.",
+    };
+  }
+  if (ratio < 1.0) {
+    return {
+      band: `combined high-AG + non-AG acidosis (Δratio ${ratio}, 0.4–1.0)`,
+      detail: "Mixed pattern — both an anion-gap acidosis and a non-AG acidosis contributing.",
+    };
+  }
+  if (ratio <= 2.0) {
+    return {
+      band: `pure anion-gap acidosis (Δratio ${ratio}, 1.0–2.0; typical of DKA)`,
+      detail:
+        "Pattern consistent with a pure anion-gap metabolic acidosis (e.g. DKA, lactic acidosis).",
+    };
+  }
+  return {
+    band: `high-AG acidosis with coexisting metabolic alkalosis or chronic respiratory acidosis (Δratio ${ratio} > 2.0)`,
+    detail:
+      "The bicarbonate has fallen less than the AG rise would predict — suggests a coexisting metabolic alkalosis or pre-existing chronic respiratory acidosis with renal compensation.",
+  };
+}
+
+const deltaGap = defineCalculator({
+  name: "calc_delta_gap",
+  title: "Delta Gap (Wrenn)",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Δgap = anion gap − 12 (or other lab-specific normal AG). Diagnoses mixed acid-base disorders by comparing the AG rise to the HCO₃ fall.",
+  inputSchema: {
+    sodium_mmol_l: z.number().positive().describe("Serum sodium, mmol/L."),
+    chloride_mmol_l: z.number().positive().describe("Serum chloride, mmol/L."),
+    bicarbonate_mmol_l: z.number().positive().describe("Serum bicarbonate, mmol/L."),
+    normal_anion_gap: z
+      .number()
+      .positive()
+      .optional()
+      .describe("Reference normal anion gap (default 12; some labs use 10)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Wrenn K. The delta (Δ) gap: an approach to mixed acid-base disorders. Ann Emerg Med. 1990;19(11):1310-1313.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/2389872/",
+      publisher: "Annals of Emergency Medicine",
+    }),
+  ],
+  compute: (args) => {
+    const ag = computeAnionGapValue(
+      args.sodium_mmol_l,
+      args.chloride_mmol_l,
+      args.bicarbonate_mmol_l,
+    );
+    const normalAg = args.normal_anion_gap ?? 12;
+    const delta = round1(ag - normalAg);
+    const { band, detail } = deltaGapBand(delta);
+    return {
+      result: delta,
+      unit: "mEq/L",
+      interpretation: { band, detail },
+      inputs: { ...args, anion_gap: ag },
+    };
+  },
+});
+
+const deltaRatio = defineCalculator({
+  name: "calc_delta_ratio",
+  title: "Delta Ratio (Wrenn)",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Δratio = (AG − 12) / (24 − HCO₃). Discriminates pure anion-gap acidosis (1.0–2.0) from mixed patterns. Undefined when HCO₃ ≥ 24 (no acidosis to compare against).",
+  inputSchema: {
+    sodium_mmol_l: z.number().positive().describe("Serum sodium, mmol/L."),
+    chloride_mmol_l: z.number().positive().describe("Serum chloride, mmol/L."),
+    bicarbonate_mmol_l: z.number().positive().describe("Serum bicarbonate, mmol/L."),
+    normal_anion_gap: z
+      .number()
+      .positive()
+      .optional()
+      .describe("Reference normal AG (default 12)."),
+    normal_bicarbonate: z
+      .number()
+      .positive()
+      .optional()
+      .describe("Reference normal bicarbonate (default 24)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Wrenn K. The delta (Δ) gap: an approach to mixed acid-base disorders. Ann Emerg Med. 1990;19(11):1310-1313.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/2389872/",
+      publisher: "Annals of Emergency Medicine",
+    }),
+    formulaSource({
+      title:
+        "Berend K, de Vries APJ, Gans ROB. Physiological approach to assessment of acid-base disturbances. N Engl J Med. 2014;371(15):1434-1445.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/25295502/",
+      publisher: "New England Journal of Medicine",
+    }),
+  ],
+  compute: (args) => {
+    const ag = computeAnionGapValue(
+      args.sodium_mmol_l,
+      args.chloride_mmol_l,
+      args.bicarbonate_mmol_l,
+    );
+    const normalAg = args.normal_anion_gap ?? 12;
+    const normalBicarb = args.normal_bicarbonate ?? 24;
+    const denominator = normalBicarb - args.bicarbonate_mmol_l;
+
+    if (denominator <= 0) {
+      return {
+        result: 0,
+        unit: "",
+        interpretation: {
+          band: "undefined (HCO₃ at or above reference)",
+          detail:
+            "Δratio is not meaningful when bicarbonate is at or above the reference normal — no metabolic acidosis is present to compare the AG rise against.",
+        },
+        inputs: { ...args, anion_gap: ag },
+        warnings: [
+          "Bicarbonate is at or above the reference value; Δratio is undefined. Use the Δgap or interpret the AG and HCO₃ separately.",
+        ],
+      };
+    }
+    const ratio = round1((ag - normalAg) / denominator);
+    const { band, detail } = deltaRatioBand(ratio);
+    return {
+      result: ratio,
+      unit: "",
+      interpretation: { band, detail },
+      inputs: { ...args, anion_gap: ag },
+      warnings: [
+        "Δratio band cutoffs are clinical-correlate ranges (Berend 2014 textbook review), not strict thresholds from Wrenn 1990. Interpret in clinical context.",
+      ],
+    };
+  },
+});
+
+const albCorrectedAnionGap = defineCalculator({
+  name: "calc_albumin_corrected_anion_gap",
+  title: "Albumin-Corrected Anion Gap (Figge)",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Restores AG sensitivity in hypoalbuminemia by adding 2.5 mEq/L per 1 g/dL below 4.0 (Figge 1998).",
+  inputSchema: {
+    sodium_mmol_l: z.number().positive().describe("Serum sodium, mmol/L."),
+    chloride_mmol_l: z.number().positive().describe("Serum chloride, mmol/L."),
+    bicarbonate_mmol_l: z.number().positive().describe("Serum bicarbonate, mmol/L."),
+    albumin_g_dl: z.number().positive().describe("Serum albumin, g/dL."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Figge J, Jabor A, Kazda A, Fencl V. Anion gap and hypoalbuminemia. Crit Care Med. 1998;26(11):1807-1810.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/9559600/",
+      publisher: "Critical Care Medicine",
+    }),
+  ],
+  compute: (args) => {
+    const ag = computeAnionGapValue(
+      args.sodium_mmol_l,
+      args.chloride_mmol_l,
+      args.bicarbonate_mmol_l,
+    );
+    const corrected = round1(computeAlbCorrectedAg(ag, args.albumin_g_dl));
+    let band: string;
+    let detail: string;
+    if (corrected > 12) {
+      band = `elevated (${corrected} > 12)`;
+      detail =
+        "Albumin-corrected AG is elevated. Hypoalbuminemia narrows the measured AG; the correction restores diagnostic sensitivity for unmeasured-anion acidosis.";
+    } else if (corrected < 6) {
+      band = `low (${corrected} < 6)`;
+      detail = "Albumin-corrected AG is low — consider paraproteinemia or lab artifact.";
+    } else {
+      band = `within reference (${corrected} mEq/L)`;
+      detail =
+        "Albumin-corrected AG within typical reference range. The correction matters most when albumin < 4 g/dL.";
+    }
+    return {
+      result: corrected,
+      unit: "mEq/L",
+      interpretation: { band, detail },
+      inputs: { ...args, raw_anion_gap: ag },
+    };
+  },
+});
+
+const albCorrectedDeltaGap = defineCalculator({
+  name: "calc_albumin_corrected_delta_gap",
+  title: "Albumin-Corrected Delta Gap",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Δgap computed from the albumin-corrected AG (Figge 1998 + Wrenn 1990). Same interpretive bands as Δgap.",
+  inputSchema: {
+    sodium_mmol_l: z.number().positive().describe("Serum sodium, mmol/L."),
+    chloride_mmol_l: z.number().positive().describe("Serum chloride, mmol/L."),
+    bicarbonate_mmol_l: z.number().positive().describe("Serum bicarbonate, mmol/L."),
+    albumin_g_dl: z.number().positive().describe("Serum albumin, g/dL."),
+    normal_anion_gap: z
+      .number()
+      .positive()
+      .optional()
+      .describe("Reference normal AG (default 12)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Figge J, Jabor A, Kazda A, Fencl V. Anion gap and hypoalbuminemia. Crit Care Med. 1998;26(11):1807-1810.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/9559600/",
+      publisher: "Critical Care Medicine",
+    }),
+    formulaSource({
+      title:
+        "Wrenn K. The delta (Δ) gap: an approach to mixed acid-base disorders. Ann Emerg Med. 1990;19(11):1310-1313.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/2389872/",
+      publisher: "Annals of Emergency Medicine",
+    }),
+  ],
+  compute: (args) => {
+    const ag = computeAnionGapValue(
+      args.sodium_mmol_l,
+      args.chloride_mmol_l,
+      args.bicarbonate_mmol_l,
+    );
+    const correctedAg = computeAlbCorrectedAg(ag, args.albumin_g_dl);
+    const normalAg = args.normal_anion_gap ?? 12;
+    const delta = round1(correctedAg - normalAg);
+    const { band, detail } = deltaGapBand(delta);
+    return {
+      result: delta,
+      unit: "mEq/L",
+      interpretation: { band, detail },
+      inputs: { ...args, raw_anion_gap: ag, corrected_anion_gap: round1(correctedAg) },
+    };
+  },
+});
+
+const albCorrectedDeltaRatio = defineCalculator({
+  name: "calc_albumin_corrected_delta_ratio",
+  title: "Albumin-Corrected Delta Ratio",
+  domain: "renal-metabolic",
+  complexity: "formula",
+  description:
+    "Δratio computed from the albumin-corrected AG. Undefined when HCO₃ ≥ 24. Same interpretive bands as Δratio.",
+  inputSchema: {
+    sodium_mmol_l: z.number().positive().describe("Serum sodium, mmol/L."),
+    chloride_mmol_l: z.number().positive().describe("Serum chloride, mmol/L."),
+    bicarbonate_mmol_l: z.number().positive().describe("Serum bicarbonate, mmol/L."),
+    albumin_g_dl: z.number().positive().describe("Serum albumin, g/dL."),
+    normal_anion_gap: z
+      .number()
+      .positive()
+      .optional()
+      .describe("Reference normal AG (default 12)."),
+    normal_bicarbonate: z
+      .number()
+      .positive()
+      .optional()
+      .describe("Reference normal bicarbonate (default 24)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Figge J, Jabor A, Kazda A, Fencl V. Anion gap and hypoalbuminemia. Crit Care Med. 1998;26(11):1807-1810.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/9559600/",
+      publisher: "Critical Care Medicine",
+    }),
+    formulaSource({
+      title:
+        "Wrenn K. The delta (Δ) gap: an approach to mixed acid-base disorders. Ann Emerg Med. 1990;19(11):1310-1313.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/2389872/",
+      publisher: "Annals of Emergency Medicine",
+    }),
+  ],
+  compute: (args) => {
+    const ag = computeAnionGapValue(
+      args.sodium_mmol_l,
+      args.chloride_mmol_l,
+      args.bicarbonate_mmol_l,
+    );
+    const correctedAg = computeAlbCorrectedAg(ag, args.albumin_g_dl);
+    const normalAg = args.normal_anion_gap ?? 12;
+    const normalBicarb = args.normal_bicarbonate ?? 24;
+    const denominator = normalBicarb - args.bicarbonate_mmol_l;
+
+    if (denominator <= 0) {
+      return {
+        result: 0,
+        unit: "",
+        interpretation: {
+          band: "undefined (HCO₃ at or above reference)",
+          detail:
+            "Δratio is not meaningful when bicarbonate is at or above reference — no metabolic acidosis to compare against.",
+        },
+        inputs: { ...args, raw_anion_gap: ag, corrected_anion_gap: round1(correctedAg) },
+        warnings: ["HCO₃ ≥ reference; Δratio undefined."],
+      };
+    }
+    const ratio = round1((correctedAg - normalAg) / denominator);
+    const { band, detail } = deltaRatioBand(ratio);
+    return {
+      result: ratio,
+      unit: "",
+      interpretation: { band, detail },
+      inputs: { ...args, raw_anion_gap: ag, corrected_anion_gap: round1(correctedAg) },
+      warnings: [
+        "Δratio band cutoffs are clinical-correlate ranges (Berend 2014). Interpret in clinical context.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
 export const renalCalculators: CalculatorDef[] = [
   creatinineClearance,
   gfrCkdEpi,
@@ -556,4 +1233,15 @@ export const renalCalculators: CalculatorDef[] = [
   correctedCalcium,
   correctedSodiumHillier,
   serumOsmolality,
+  targetWeight,
+  adjustedBodyWeight,
+  fena,
+  freeWaterDeficit,
+  maintenanceFluids,
+  mdrdGfr,
+  deltaGap,
+  deltaRatio,
+  albCorrectedAnionGap,
+  albCorrectedDeltaGap,
+  albCorrectedDeltaRatio,
 ];
