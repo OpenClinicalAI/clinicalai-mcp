@@ -331,4 +331,62 @@ const timiNstemi = defineCalculator({
 
 /* -------------------------------------------------------------------------- */
 
-export const cardiologyCalculators: CalculatorDef[] = [chadsVasc, hasBled, grace, timiNstemi];
+const map = defineCalculator({
+  name: "calc_map",
+  title: "Mean Arterial Pressure (MAP)",
+  domain: "cardiology",
+  complexity: "formula",
+  description:
+    "Mean arterial pressure from systolic and diastolic blood pressure. The Surviving Sepsis Campaign target for resuscitation is MAP ≥ 65 mmHg.",
+  inputSchema: {
+    systolic_bp_mm_hg: z.number().positive().describe("Systolic blood pressure in mmHg."),
+    diastolic_bp_mm_hg: z.number().positive().describe("Diastolic blood pressure in mmHg."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Magder SA. The meaning of blood pressure. Crit Care. 2018;22(1):257. (Review of MAP as the relevant perfusion pressure.)",
+      url: "https://pubmed.ncbi.nlm.nih.gov/24935095/",
+      publisher: "Critical Care",
+    }),
+    formulaSource({
+      title:
+        "Evans L, Rhodes A, Alhazzani W, et al. Surviving Sepsis Campaign: International Guidelines for Management of Sepsis and Septic Shock 2021. Crit Care Med. 2021;49(11):e1063-e1143.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/34599691/",
+      publisher: "Critical Care Medicine",
+    }),
+  ],
+  compute: (args) => {
+    const mapValue =
+      Math.round(((args.systolic_bp_mm_hg + 2 * args.diastolic_bp_mm_hg) / 3) * 10) / 10;
+    let band: string;
+    let detail: string;
+    if (mapValue < 60) {
+      band = `severe hypotension (${mapValue} < 60)`;
+      detail =
+        "MAP < 60 mmHg risks end-organ hypoperfusion. Identify and treat the underlying cause urgently (volume, vasopressors, cardiac output).";
+    } else if (mapValue < 65) {
+      band = `below SSC resuscitation target (${mapValue} < 65)`;
+      detail =
+        "Below the Surviving Sepsis Campaign 2021 resuscitation target of MAP ≥ 65 mmHg for septic shock. Continue resuscitation per institutional protocol.";
+    } else {
+      band = `at or above SSC target (${mapValue} ≥ 65)`;
+      detail =
+        "At or above the Surviving Sepsis Campaign 2021 resuscitation target of MAP ≥ 65 mmHg. Individualize the target — some patients (chronic hypertension, neurocritical care) need higher MAP.";
+    }
+
+    return {
+      result: mapValue,
+      unit: "mmHg",
+      interpretation: { band, detail },
+      inputs: { ...args },
+      warnings: [
+        "The (SBP + 2·DBP)/3 formula assumes a normal heart rate (60–100). At extreme tachycardia the diastolic-weighted approximation underestimates true MAP — invasive arterial-line MAP is the gold standard when accuracy matters.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+export const cardiologyCalculators: CalculatorDef[] = [chadsVasc, hasBled, grace, timiNstemi, map];

@@ -325,6 +325,150 @@ describe("critical-care calculators", () => {
 /* met / not met combination that drives a different classification — rather   */
 /* than numeric tolerance on a single output value.                            */
 
+/* -------------------------------------------------------------------------- */
+/* MedCalc-Bench tier-1 batch (anthropometric + electrolyte + MAP)             */
+/* -------------------------------------------------------------------------- */
+
+describe("MedCalc-Bench tier-1: anthropometric / body-measurement", () => {
+  it("BMI: 70 kg / 1.75 m → 22.9 kg/m² (normal)", () => {
+    const r = compute("calc_bmi", { weight_kg: 70, height_m: 1.75 });
+    expect(r.result).toBe(22.9);
+    expect(r.interpretation.band).toContain("normal");
+  });
+
+  it("BMI: 100 kg / 1.65 m → 36.7 kg/m² (class II)", () => {
+    const r = compute("calc_bmi", { weight_kg: 100, height_m: 1.65 });
+    expect(r.result).toBe(36.7);
+    expect(r.interpretation.band).toContain("class II");
+  });
+
+  it("BMI: 45 kg / 1.7 m → 15.6 (underweight)", () => {
+    const r = compute("calc_bmi", { weight_kg: 45, height_m: 1.7 });
+    expect(r.interpretation.band).toContain("underweight");
+  });
+
+  it("BSA Mosteller: 70 kg / 175 cm → 1.84 m²", () => {
+    const r = compute("calc_bsa_mosteller", { weight_kg: 70, height_cm: 175 });
+    expect(r.result).toBe(1.84);
+  });
+
+  it("BSA Mosteller: 50 kg / 150 cm → 1.44 m²", () => {
+    const r = compute("calc_bsa_mosteller", { weight_kg: 50, height_cm: 150 });
+    expect(r.result).toBe(1.44);
+  });
+
+  it("IBW Devine: 70-inch male → 73 kg", () => {
+    const r = compute("calc_ibw_devine", { height_inches: 70, sex: "M" });
+    expect(r.result).toBe(73);
+  });
+
+  it("IBW Devine: 64-inch female → 54.7 kg", () => {
+    const r = compute("calc_ibw_devine", { height_inches: 64, sex: "F" });
+    expect(r.result).toBe(54.7);
+  });
+
+  it("IBW Devine: very short patient triggers low-height warning", () => {
+    const r = compute("calc_ibw_devine", { height_inches: 48, sex: "F" });
+    expect(r.warnings?.join(" ")).toContain("very short");
+  });
+});
+
+describe("MedCalc-Bench tier-1: electrolyte / acid-base", () => {
+  it("Anion gap: Na 140, Cl 100, HCO₃ 24 → 16 (elevated)", () => {
+    const r = compute("calc_anion_gap", {
+      sodium_mmol_l: 140,
+      chloride_mmol_l: 100,
+      bicarbonate_mmol_l: 24,
+    });
+    expect(r.result).toBe(16);
+    expect(r.interpretation.band).toContain("elevated");
+  });
+
+  it("Anion gap: Na 138, Cl 105, HCO₃ 28 → 5 (low)", () => {
+    const r = compute("calc_anion_gap", {
+      sodium_mmol_l: 138,
+      chloride_mmol_l: 105,
+      bicarbonate_mmol_l: 28,
+    });
+    expect(r.result).toBe(5);
+    expect(r.interpretation.band).toContain("low");
+  });
+
+  it("Corrected calcium: Ca 8.0, albumin 2.0 → 9.6 (normal corrected)", () => {
+    const r = compute("calc_corrected_calcium", {
+      serum_calcium_mg_dl: 8.0,
+      serum_albumin_g_dl: 2.0,
+    });
+    expect(r.result).toBe(9.6);
+    expect(r.interpretation.band).toContain("within reference");
+  });
+
+  it("Corrected calcium: Ca 9.5, albumin 4.0 → 9.5 (no correction)", () => {
+    const r = compute("calc_corrected_calcium", {
+      serum_calcium_mg_dl: 9.5,
+      serum_albumin_g_dl: 4.0,
+    });
+    expect(r.result).toBe(9.5);
+  });
+
+  it("Corrected sodium (Hillier): Na 130, glucose 500 → 139.6 mmol/L", () => {
+    const r = compute("calc_corrected_sodium_hillier", {
+      measured_sodium_mmol_l: 130,
+      glucose_mg_dl: 500,
+    });
+    expect(r.result).toBe(139.6);
+  });
+
+  it("Corrected sodium (Hillier): Na 135, glucose 200 → 137.4 mmol/L", () => {
+    const r = compute("calc_corrected_sodium_hillier", {
+      measured_sodium_mmol_l: 135,
+      glucose_mg_dl: 200,
+    });
+    expect(r.result).toBe(137.4);
+  });
+
+  it("Serum osmolality: Na 140, BUN 14, glucose 90 → 290 mOsm/kg (normal)", () => {
+    const r = compute("calc_serum_osmolality", {
+      sodium_mmol_l: 140,
+      bun_mg_dl: 14,
+      glucose_mg_dl: 90,
+    });
+    expect(r.result).toBe(290);
+    expect(r.interpretation.band).toContain("within reference");
+  });
+
+  it("Serum osmolality: Na 145, BUN 60, glucose 600 → 344.8 (hyperosmolar)", () => {
+    const r = compute("calc_serum_osmolality", {
+      sodium_mmol_l: 145,
+      bun_mg_dl: 60,
+      glucose_mg_dl: 600,
+    });
+    // 290 + 60/2.8 (21.43) + 600/18 (33.33) = 344.76 → rounds to 344.8
+    expect(r.result).toBe(344.8);
+    expect(r.interpretation.band).toContain("high");
+  });
+});
+
+describe("MedCalc-Bench tier-1: cardiology", () => {
+  it("MAP: SBP 120 / DBP 80 → 93.3 mmHg (at SSC target)", () => {
+    const r = compute("calc_map", { systolic_bp_mm_hg: 120, diastolic_bp_mm_hg: 80 });
+    expect(r.result).toBe(93.3);
+    expect(r.interpretation.band).toContain("at or above");
+  });
+
+  it("MAP: SBP 90 / DBP 50 → 63.3 mmHg (below SSC target)", () => {
+    const r = compute("calc_map", { systolic_bp_mm_hg: 90, diastolic_bp_mm_hg: 50 });
+    expect(r.result).toBe(63.3);
+    expect(r.interpretation.band).toContain("below SSC");
+  });
+
+  it("MAP: SBP 75 / DBP 40 → 51.7 mmHg (severe hypotension)", () => {
+    const r = compute("calc_map", { systolic_bp_mm_hg: 75, diastolic_bp_mm_hg: 40 });
+    expect(r.result).toBe(51.7);
+    expect(r.interpretation.band).toContain("severe");
+  });
+});
+
 describe("Berlin ARDS (tree-class)", () => {
   const baseline = {
     onset_within_1_week: true,
