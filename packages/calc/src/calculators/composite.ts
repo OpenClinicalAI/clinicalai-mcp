@@ -8,7 +8,12 @@
 
 import type { Source } from "@openclinicalai/shared";
 import { z } from "zod";
-import { type CalcResult, type CalculatorDef, defineCalculator } from "../framework.js";
+import {
+  type CalcResult,
+  type CalculatorDef,
+  defineCalculator,
+  numericResult,
+} from "../framework.js";
 import { cardiologyCalculators } from "./cardiology.js";
 import { criticalCareCalculators } from "./critical-care.js";
 import { pulmonaryVteCalculators } from "./pulmonary-vte.js";
@@ -46,7 +51,7 @@ function mergedSources(...names: string[]): Source[] {
 
 /** A breakdown row carrying a sub-calculator's score and its interpretive band. */
 function componentRow(label: string, result: CalcResult): { component: string; value: number } {
-  return { component: `${label} — ${result.interpretation.band}`, value: result.result };
+  return { component: `${label} — ${result.interpretation.band}`, value: numericResult(result) };
 }
 
 /* -------------------------------------------------------------------------- */
@@ -55,6 +60,7 @@ const kidneyWorkup = defineCalculator({
   name: "calc_kidney_workup",
   title: "Kidney Function Workup",
   domain: "composite",
+  complexity: "multi-step",
   description:
     "Estimate kidney function three ways — Cockcroft-Gault creatinine clearance, CKD-EPI 2021 eGFR, and the legacy MDRD eGFR — with guidance on which to use when.",
   inputSchema: {
@@ -100,6 +106,7 @@ const cardiacRiskPanel = defineCalculator({
   name: "calc_cardiac_risk_panel",
   title: "Atrial Fibrillation Risk Panel (CHA₂DS₂-VASc + HAS-BLED)",
   domain: "composite",
+  complexity: "multi-step",
   description:
     "Pair the CHA₂DS₂-VASc stroke score with the HAS-BLED bleeding score and interpret their net clinical benefit for an anticoagulation decision.",
   inputSchema: {
@@ -144,7 +151,7 @@ const cardiacRiskPanel = defineCalculator({
     });
 
     const anticoagIndicated = chads.interpretation.band.startsWith("high");
-    const highBleeding = hasBled.result >= 3;
+    const highBleeding = numericResult(hasBled) >= 3;
     let detail: string;
     if (anticoagIndicated && highBleeding) {
       detail =
@@ -176,6 +183,7 @@ const sepsisPanel = defineCalculator({
   name: "calc_sepsis_panel",
   title: "Sepsis Severity Panel (qSOFA + SOFA + APACHE II)",
   domain: "composite",
+  complexity: "multi-step",
   description:
     "Run qSOFA always, the full SOFA score when its inputs are supplied, and APACHE II when ICU physiology is supplied — graded by data availability.",
   inputSchema: {
@@ -215,7 +223,7 @@ const sepsisPanel = defineCalculator({
     }
 
     const escalationNote =
-      qsofa.result >= 2
+      numericResult(qsofa) >= 2
         ? "qSOFA ≥2 in suspected infection flags higher risk — a full SOFA score should be obtained if not already, and treatment escalated."
         : "qSOFA is below the high-risk threshold, which does not exclude sepsis.";
     const detail = `Scores computed from the data supplied: ${computed.join(", ")}. ${escalationNote} Under Sepsis-3, sepsis is an acute rise in SOFA ≥2 from baseline with suspected infection; APACHE II adds ICU mortality prognostication.`;
@@ -239,6 +247,7 @@ const peWorkup = defineCalculator({
   name: "calc_pe_workup",
   title: "Pulmonary Embolism Workup (Wells + PERC + PESI)",
   domain: "composite",
+  complexity: "multi-step",
   description:
     "Combine the Wells PE pretest probability, the PERC rule, and PESI severity into a single diagnostic-pathway reading.",
   inputSchema: {
@@ -254,7 +263,7 @@ const peWorkup = defineCalculator({
     const perc = run("calc_perc", args.perc as Record<string, unknown>);
     const pesi = run("calc_pesi", args.pesi as Record<string, unknown>);
 
-    const wellsUnlikely = wells.result <= 4;
+    const wellsUnlikely = numericResult(wells) <= 4;
     const percNegative = perc.result === 0;
 
     let detail: string;

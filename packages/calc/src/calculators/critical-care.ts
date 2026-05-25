@@ -4,7 +4,14 @@
 
 import { ClinicalMcpError, formulaSource } from "@openclinicalai/shared";
 import { z } from "zod";
-import { type CalculatorDef, defineCalculator, rangePoints, sumBreakdown } from "../framework.js";
+import {
+  type CalculatorDef,
+  countMet,
+  criterion,
+  defineCalculator,
+  rangePoints,
+  sumBreakdown,
+} from "../framework.js";
 
 const flag = (condition: boolean, points: number): number => (condition ? points : 0);
 
@@ -14,6 +21,7 @@ const apacheII = defineCalculator({
   name: "calc_apache_ii",
   title: "APACHE II Score",
   domain: "critical-care",
+  complexity: "lookup",
   description:
     "Acute Physiology and Chronic Health Evaluation II — estimate ICU mortality risk from the worst physiologic values in the first 24 hours, age, and chronic health status.",
   inputSchema: {
@@ -230,6 +238,7 @@ const sofa = defineCalculator({
   name: "calc_sofa",
   title: "SOFA Score (Sequential Organ Failure Assessment)",
   domain: "critical-care",
+  complexity: "lookup",
   description:
     "Quantify the degree of organ dysfunction across six organ systems. An acute rise of ≥2 points defines sepsis under Sepsis-3.",
   inputSchema: {
@@ -352,6 +361,7 @@ const qsofa = defineCalculator({
   name: "calc_qsofa",
   title: "qSOFA (Quick SOFA)",
   domain: "critical-care",
+  complexity: "lookup",
   description:
     "A rapid bedside screen — respiratory rate, mentation, and systolic blood pressure — for patients with suspected infection at risk of poor outcomes.",
   inputSchema: {
@@ -395,4 +405,124 @@ const qsofa = defineCalculator({
 
 /* -------------------------------------------------------------------------- */
 
-export const criticalCareCalculators: CalculatorDef[] = [apacheII, sofa, qsofa];
+/**
+ * Berlin Definition of ARDS (ARDS Definition Task Force, JAMA 2012). This is
+ * the canonical tree-class calculator — three binary clinical criteria plus
+ * an oxygenation severity band, output is a categorical classification.
+ *
+ * Reference: Ranieri VM, Rubenfeld GD, Thompson BT, et al. Acute respiratory
+ * distress syndrome: the Berlin Definition. JAMA. 2012;307(23):2526-2533.
+ * PMID 22797452.
+ */
+const berlinArds = defineCalculator({
+  name: "calc_berlin_ards",
+  title: "Berlin Definition of ARDS",
+  domain: "critical-care",
+  complexity: "tree",
+  description:
+    "Classify acute respiratory distress syndrome (ARDS) severity per the Berlin Definition (JAMA 2012). All three clinical criteria (timing, bilateral chest imaging, edema-origin) must be met for any ARDS classification; severity (mild / moderate / severe) is then driven by the PaO₂/FiO₂ ratio with PEEP ≥ 5 cm H₂O.",
+  inputSchema: {
+    onset_within_1_week: z
+      .boolean()
+      .describe(
+        "ARDS onset within 1 week of a known clinical insult or new/worsening respiratory symptoms.",
+      ),
+    bilateral_opacities: z
+      .boolean()
+      .describe(
+        "Bilateral opacities on chest imaging not fully explained by effusions, lobar/lung collapse, or nodules.",
+      ),
+    not_explained_by_cardiac_failure: z
+      .boolean()
+      .describe(
+        "Respiratory failure not fully explained by cardiac failure or fluid overload (objective assessment, e.g. echocardiography, to exclude hydrostatic edema when no risk factor is present).",
+      ),
+    pao2_mm_hg: z.number().positive().describe("Arterial oxygen partial pressure (PaO₂), mm Hg."),
+    fio2: z
+      .number()
+      .min(0.21)
+      .max(1)
+      .describe("Fraction of inspired oxygen (FiO₂), as a fraction between 0.21 and 1.0."),
+    peep_cm_h2o: z
+      .number()
+      .min(0)
+      .describe(
+        "Positive end-expiratory pressure (PEEP) or CPAP in cm H₂O. Berlin requires PEEP/CPAP ≥ 5 for the oxygenation criterion.",
+      ),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Ranieri VM et al. Acute respiratory distress syndrome: the Berlin Definition. JAMA. 2012;307(23):2526-2533.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/22797452/",
+      publisher: "JAMA",
+    }),
+  ],
+  compute: (args) => {
+    const pf = args.pao2_mm_hg / args.fio2;
+    const peepOk = args.peep_cm_h2o >= 5;
+
+    const criteria = [
+      criterion(
+        "Onset within 1 week of clinical insult / worsening symptoms",
+        args.onset_within_1_week,
+      ),
+      criterion("Bilateral opacities on chest imaging", args.bilateral_opacities),
+      criterion(
+        "Not fully explained by cardiac failure / fluid overload",
+        args.not_explained_by_cardiac_failure,
+      ),
+      criterion(`PEEP or CPAP ≥ 5 cm H₂O (actual: ${args.peep_cm_h2o})`, peepOk, {
+        detail: `PEEP/CPAP = ${args.peep_cm_h2o} cm H₂O`,
+      }),
+    ];
+
+    const allClinicalMet = countMet(criteria) === criteria.length;
+
+    let result: string;
+    let band: string;
+    let detail: string;
+
+    if (!allClinicalMet) {
+      const failed = criteria.filter((c) => !c.met).map((c) => c.name);
+      result = "no-ards";
+      band = "ARDS criteria not met";
+      detail = `Berlin Definition not satisfied — the following criterion/criteria are not met: ${failed.join("; ")}. P/F ratio = ${pf.toFixed(0)} is therefore not classified as ARDS.`;
+    } else if (pf <= 100) {
+      result = "severe";
+      band = "severe ARDS";
+      detail = `PaO₂/FiO₂ = ${pf.toFixed(0)} (≤ 100) with PEEP ≥ 5 — severe ARDS. Berlin-era mortality ~45%; consider lung-protective ventilation (Vt 4–6 mL/kg PBW, plateau ≤ 30 cm H₂O), prone positioning, and ECMO referral per institutional criteria.`;
+    } else if (pf <= 200) {
+      result = "moderate";
+      band = "moderate ARDS";
+      detail = `PaO₂/FiO₂ = ${pf.toFixed(0)} (100 < P/F ≤ 200) with PEEP ≥ 5 — moderate ARDS. Berlin-era mortality ~32%; lung-protective ventilation indicated, evaluate response to higher PEEP / prone positioning.`;
+    } else if (pf <= 300) {
+      result = "mild";
+      band = "mild ARDS";
+      detail = `PaO₂/FiO₂ = ${pf.toFixed(0)} (200 < P/F ≤ 300) with PEEP ≥ 5 — mild ARDS. Berlin-era mortality ~27%; lung-protective ventilation indicated.`;
+    } else {
+      result = "no-ards";
+      band = "P/F > 300 — does not meet ARDS oxygenation criterion";
+      detail = `Clinical criteria met but PaO₂/FiO₂ = ${pf.toFixed(0)} is above the Berlin oxygenation threshold (≤ 300) — does not meet ARDS criteria. Re-evaluate if oxygenation deteriorates.`;
+    }
+
+    const summary = allClinicalMet
+      ? `All clinical criteria met; P/F = ${pf.toFixed(0)} → ${band}.`
+      : `Clinical criteria not all met (${countMet(criteria)}/${criteria.length}).`;
+
+    return {
+      result,
+      unit: "",
+      interpretation: { band, detail },
+      rule_trace: { criteria, summary },
+      inputs: { ...args, pao2_fio2_ratio: Number(pf.toFixed(1)) },
+      warnings: [
+        "Berlin Definition was developed in adults; for pediatric ARDS use PALICC-2 (Pediatric Acute Lung Injury Consensus Conference) criteria.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+export const criticalCareCalculators: CalculatorDef[] = [apacheII, sofa, qsofa, berlinArds];

@@ -16,6 +16,7 @@ const creatinineClearance = defineCalculator({
   name: "calc_creatinine_clearance",
   title: "Creatinine Clearance (Cockcroft-Gault)",
   domain: "renal-metabolic",
+  complexity: "formula",
   description:
     "Estimate creatinine clearance from age, weight, sex, and serum creatinine using the Cockcroft-Gault equation. Widely used for renal drug dosing.",
   inputSchema: {
@@ -77,6 +78,7 @@ const gfrCkdEpi = defineCalculator({
   name: "calc_gfr_ckd_epi",
   title: "Estimated GFR (CKD-EPI 2021, race-free)",
   domain: "renal-metabolic",
+  complexity: "formula",
   description:
     "Estimate glomerular filtration rate from age, sex, and serum creatinine using the 2021 race-free CKD-EPI creatinine equation — the current NKF/ASN-recommended equation.",
   inputSchema: {
@@ -136,6 +138,7 @@ const meld = defineCalculator({
   name: "calc_meld",
   title: "MELD-Na (Model for End-Stage Liver Disease, sodium-adjusted)",
   domain: "renal-metabolic",
+  complexity: "formula",
   description:
     "Estimate 3-month mortality in chronic liver disease from bilirubin, INR, creatinine, and (optionally) sodium using the MELD-Na score.",
   inputSchema: {

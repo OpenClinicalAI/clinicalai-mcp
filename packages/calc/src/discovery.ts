@@ -20,8 +20,20 @@ const CALCULATOR_DOMAINS = [
   "cardiology",
   "pulmonary-vte",
   "critical-care",
+  "infectious-disease",
+  "hepatology-gi",
+  "neurology",
+  "hematology",
+  "trauma",
+  "obstetrics",
+  "pediatrics",
+  "endocrinology",
+  "oncology",
+  "emergency-medicine",
   "composite",
 ] as const;
+
+const CALCULATOR_COMPLEXITIES = ["formula", "lookup", "tree", "multi-step"] as const;
 
 function discoverySource() {
   return makeSource({
@@ -33,6 +45,12 @@ function discoverySource() {
 
 const listInput = z.object({
   domain: z.enum(CALCULATOR_DOMAINS).optional().describe("Optional domain filter."),
+  complexity: z
+    .enum(CALCULATOR_COMPLEXITIES)
+    .optional()
+    .describe(
+      "Optional implementation-pattern filter — `formula`/`lookup` are numeric, `tree` is criteria-cascade categorical, `multi-step` is composite.",
+    ),
 });
 
 const describeInput = z.object({
@@ -42,14 +60,17 @@ const describeInput = z.object({
 const listCalculators: ToolDef = {
   name: "list_calculators",
   description:
-    "List the available clinical calculators, optionally filtered by domain (renal-metabolic, cardiology, pulmonary-vte, critical-care, composite).",
+    "List the available clinical calculators, optionally filtered by domain (renal-metabolic, cardiology, pulmonary-vte, critical-care, infectious-disease, hepatology-gi, neurology, hematology, trauma, obstetrics, pediatrics, endocrinology, oncology, emergency-medicine, composite) and/or implementation complexity (formula, lookup, tree, multi-step).",
   inputSchema: listInput.shape,
   handler: (args): Promise<ToolResult<unknown>> => {
-    const { domain } = listInput.parse(args);
-    const calculators = ALL_CALCULATORS.filter((c) => !domain || c.domain === domain).map((c) => ({
+    const { domain, complexity } = listInput.parse(args);
+    const calculators = ALL_CALCULATORS.filter(
+      (c) => (!domain || c.domain === domain) && (!complexity || c.complexity === complexity),
+    ).map((c) => ({
       name: c.name,
       title: c.title,
       domain: c.domain,
+      complexity: c.complexity,
       description: c.description,
     }));
     return Promise.resolve(
@@ -77,6 +98,7 @@ const describeCalculatorHandler = async (
       name: calc.name,
       title: calc.title,
       domain: calc.domain,
+      complexity: calc.complexity,
       description: calc.description,
       sources: calc.sources,
       input_schema: zodToJsonSchema(z.object(calc.inputSchema)),
@@ -89,7 +111,7 @@ const describeCalculatorHandler = async (
 const describeCalculator: ToolDef = {
   name: "describe_calculator",
   description:
-    "Return a calculator's full input schema (as JSON Schema), domain, description, and primary-literature citations.",
+    "Return a calculator's full input schema (as JSON Schema), domain, complexity, description, and primary-literature citations.",
   inputSchema: describeInput.shape,
   handler: describeCalculatorHandler,
 };

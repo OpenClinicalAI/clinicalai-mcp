@@ -317,3 +317,85 @@ describe("critical-care calculators", () => {
     expect(r.interpretation.band).toContain("high");
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Tree-class calculators                                                      */
+/* -------------------------------------------------------------------------- */
+/* These tests exercise branch coverage on the rule cascade — every criterion  */
+/* met / not met combination that drives a different classification — rather   */
+/* than numeric tolerance on a single output value.                            */
+
+describe("Berlin ARDS (tree-class)", () => {
+  const baseline = {
+    onset_within_1_week: true,
+    bilateral_opacities: true,
+    not_explained_by_cardiac_failure: true,
+    pao2_mm_hg: 80,
+    fio2: 0.4,
+    peep_cm_h2o: 8,
+  };
+
+  it("classifies mild ARDS at 200 < P/F ≤ 300", () => {
+    // P/F = 80 / 0.4 = 200 → boundary case: 200 is mild's lower bound (exclusive),
+    // so use 250 to land squarely in mild.
+    const r = compute("calc_berlin_ards", { ...baseline, pao2_mm_hg: 100 }); // 100/0.4 = 250
+    expect(r.result).toBe("mild");
+    expect(r.interpretation.band).toBe("mild ARDS");
+    expect(r.rule_trace?.criteria).toHaveLength(4);
+    expect(r.rule_trace?.criteria.every((c) => c.met)).toBe(true);
+  });
+
+  it("classifies moderate ARDS at 100 < P/F ≤ 200", () => {
+    const r = compute("calc_berlin_ards", { ...baseline, pao2_mm_hg: 60 }); // 60/0.4 = 150
+    expect(r.result).toBe("moderate");
+    expect(r.interpretation.band).toBe("moderate ARDS");
+  });
+
+  it("classifies severe ARDS at P/F ≤ 100", () => {
+    const r = compute("calc_berlin_ards", { ...baseline, pao2_mm_hg: 40 }); // 40/0.4 = 100
+    expect(r.result).toBe("severe");
+    expect(r.interpretation.band).toBe("severe ARDS");
+  });
+
+  it("returns no-ards when timing criterion not met", () => {
+    const r = compute("calc_berlin_ards", { ...baseline, onset_within_1_week: false });
+    expect(r.result).toBe("no-ards");
+    expect(r.interpretation.detail).toContain("Onset within 1 week");
+    // Trace records WHICH criterion failed.
+    expect(r.rule_trace?.criteria.find((c) => c.name.startsWith("Onset"))?.met).toBe(false);
+  });
+
+  it("returns no-ards when bilateral-opacities criterion not met", () => {
+    const r = compute("calc_berlin_ards", { ...baseline, bilateral_opacities: false });
+    expect(r.result).toBe("no-ards");
+  });
+
+  it("returns no-ards when edema-origin criterion not met", () => {
+    const r = compute("calc_berlin_ards", {
+      ...baseline,
+      not_explained_by_cardiac_failure: false,
+    });
+    expect(r.result).toBe("no-ards");
+  });
+
+  it("returns no-ards when PEEP < 5 (oxygenation criterion not met)", () => {
+    const r = compute("calc_berlin_ards", { ...baseline, peep_cm_h2o: 4 });
+    expect(r.result).toBe("no-ards");
+  });
+
+  it("returns no-ards when P/F > 300 even with all clinical criteria met", () => {
+    const r = compute("calc_berlin_ards", { ...baseline, pao2_mm_hg: 200 }); // 200/0.4 = 500
+    expect(r.result).toBe("no-ards");
+    expect(r.interpretation.band).toContain("P/F > 300");
+  });
+
+  it("includes calculated P/F ratio in inputs echo", () => {
+    const r = compute("calc_berlin_ards", baseline); // 80/0.4 = 200 (moderate)
+    expect((r.inputs as { pao2_fio2_ratio: number }).pao2_fio2_ratio).toBe(200);
+  });
+
+  it("warns about pediatric ARDS via PALICC-2 criteria", () => {
+    const r = compute("calc_berlin_ards", baseline);
+    expect(r.warnings?.join(" ")).toContain("PALICC-2");
+  });
+});

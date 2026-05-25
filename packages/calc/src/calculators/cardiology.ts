@@ -14,6 +14,7 @@ const chadsVasc = defineCalculator({
   name: "calc_chads_vasc",
   title: "CHA₂DS₂-VASc Score",
   domain: "cardiology",
+  complexity: "lookup",
   description:
     "Estimate annual stroke/thromboembolism risk in non-valvular atrial fibrillation and guide anticoagulation decisions.",
   inputSchema: {
@@ -87,6 +88,7 @@ const hasBled = defineCalculator({
   name: "calc_has_bled",
   title: "HAS-BLED Bleeding Risk Score",
   domain: "cardiology",
+  complexity: "lookup",
   description:
     "Estimate 1-year major bleeding risk in atrial fibrillation patients on anticoagulation and flag modifiable bleeding risk factors.",
   inputSchema: {
@@ -159,6 +161,7 @@ const grace = defineCalculator({
   name: "calc_grace",
   title: "GRACE ACS Risk Score",
   domain: "cardiology",
+  complexity: "lookup",
   description:
     "Estimate in-hospital mortality risk in acute coronary syndrome from age, vitals, creatinine, Killip class, and presenting features.",
   inputSchema: {
@@ -266,6 +269,7 @@ const timiNstemi = defineCalculator({
   name: "calc_timi_nstemi",
   title: "TIMI Risk Score for UA/NSTEMI",
   domain: "cardiology",
+  complexity: "lookup",
   description:
     "Estimate 14-day risk of death, new/recurrent MI, or severe recurrent ischemia in unstable angina / NSTEMI.",
   inputSchema: {

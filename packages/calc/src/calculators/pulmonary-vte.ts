@@ -14,6 +14,7 @@ const curb65 = defineCalculator({
   name: "calc_curb65",
   title: "CURB-65 Pneumonia Severity Score",
   domain: "pulmonary-vte",
+  complexity: "lookup",
   description:
     "Assess community-acquired pneumonia severity and guide the admission decision from confusion, urea, respiratory rate, blood pressure, and age.",
   inputSchema: {
@@ -78,6 +79,7 @@ const wellsPe = defineCalculator({
   name: "calc_wells_pe",
   title: "Wells Criteria for Pulmonary Embolism",
   domain: "pulmonary-vte",
+  complexity: "lookup",
   description:
     "Estimate the pretest probability of pulmonary embolism to guide D-dimer vs. imaging.",
   inputSchema: {
@@ -141,6 +143,7 @@ const wellsDvt = defineCalculator({
   name: "calc_wells_dvt",
   title: "Wells Criteria for Deep Vein Thrombosis",
   domain: "pulmonary-vte",
+  complexity: "lookup",
   description: "Estimate the pretest probability of deep vein thrombosis.",
   inputSchema: {
     active_cancer: z
@@ -231,6 +234,7 @@ const pesi = defineCalculator({
   name: "calc_pesi",
   title: "Pulmonary Embolism Severity Index (PESI)",
   domain: "pulmonary-vte",
+  complexity: "lookup",
   description:
     "Estimate 30-day mortality risk in confirmed pulmonary embolism to support outpatient-vs-inpatient triage.",
   inputSchema: {
@@ -306,6 +310,7 @@ const perc = defineCalculator({
   name: "calc_perc",
   title: "PERC Rule (PE Rule-out Criteria)",
   domain: "pulmonary-vte",
+  complexity: "lookup",
   description:
     "Apply the 8-criterion PERC rule. In a patient already judged low-risk for PE, a PERC-negative result (all criteria absent) allows PE to be excluded without D-dimer or imaging.",
   inputSchema: {
