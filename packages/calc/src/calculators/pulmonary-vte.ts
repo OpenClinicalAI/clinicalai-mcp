@@ -375,4 +375,185 @@ const perc = defineCalculator({
 
 /* -------------------------------------------------------------------------- */
 
-export const pulmonaryVteCalculators: CalculatorDef[] = [curb65, wellsPe, wellsDvt, pesi, perc];
+const caprini = defineCalculator({
+  name: "calc_caprini",
+  title: "Caprini Score for VTE (2005)",
+  domain: "pulmonary-vte",
+  complexity: "lookup",
+  description:
+    "Caprini 2005 VTE risk score for surgical patients. Score ≥5 supports pharmacologic + mechanical prophylaxis per ACCP 2012 / ASH 2019. Implements the 2005 weights — the 2010 and 2013 revisions reweighted some criteria and should not be mixed with this version.",
+  inputSchema: {
+    age_y: z.number().nonnegative().describe("Age in years."),
+    surgery_type: z
+      .enum(["none", "minor", "major", "major_lower_extremity_arthroplasty"])
+      .describe(
+        "Surgery type. 'major' covers most >45-minute major procedures including laparoscopic and arthroscopic per Caprini 2005.",
+      ),
+    bmi_kg_m2: z.number().positive().describe("Body mass index, kg/m² (≥25 contributes 1 point)."),
+    major_surgery_last_month: z.boolean().describe("Major surgery within the past month."),
+    chf_last_month: z.boolean().describe("Congestive heart failure within the past month."),
+    sepsis_last_month: z.boolean().describe("Sepsis within the past month."),
+    pneumonia_last_month: z
+      .boolean()
+      .describe("Serious pulmonary disease (e.g. pneumonia) in the past month."),
+    immobilizing_cast: z.boolean().describe("Immobilizing plaster cast within the past month."),
+    varicose_veins: z.boolean().describe("Varicose veins."),
+    current_swollen_legs: z.boolean().describe("Current swollen legs (edema)."),
+    inflammatory_bowel_disease: z.boolean().describe("Inflammatory bowel disease history."),
+    acute_myocardial_infarction: z
+      .boolean()
+      .describe("Acute myocardial infarction within the past month."),
+    copd: z.boolean().describe("COPD history."),
+    central_venous_access: z.boolean().describe("Current central venous access."),
+    malignancy: z.boolean().describe("Active or past malignancy (excluding non-melanoma skin)."),
+    previous_dvt: z.boolean().describe("Personal history of DVT."),
+    previous_pe: z.boolean().describe("Personal history of PE."),
+    family_history_thrombosis: z.boolean().describe("Family history of thrombosis."),
+    factor_v_leiden: z.boolean().describe("Factor V Leiden positive."),
+    prothrombin_20210a: z.boolean().describe("Prothrombin 20210A mutation positive."),
+    elevated_homocysteine: z.boolean().describe("Elevated serum homocysteine."),
+    lupus_anticoagulant: z.boolean().describe("Positive lupus anticoagulant."),
+    elevated_anticardiolipin: z.boolean().describe("Elevated anticardiolipin antibody."),
+    heparin_induced_thrombocytopenia: z
+      .boolean()
+      .describe("Heparin-induced thrombocytopenia history."),
+    other_thrombophilia: z.boolean().describe("Other congenital or acquired thrombophilia."),
+    hip_pelvis_leg_fracture_last_month: z
+      .boolean()
+      .describe("Hip / pelvis / leg fracture within the past month."),
+    stroke_last_month: z.boolean().describe("Stroke within the past month."),
+    multiple_trauma_last_month: z.boolean().describe("Multiple trauma within the past month."),
+    acute_spinal_cord_injury_last_month: z
+      .boolean()
+      .describe("Acute spinal cord injury (paralysis) within the past month."),
+    mobility: z
+      .enum(["normal", "on_bed_rest", "confined_to_bed_72h"])
+      .describe("Mobility status: normal (0), on bed rest (1), confined to bed >72h (2)."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Caprini JA. Thrombosis risk assessment as a guide to quality patient care. Dis Mon. 2005;51(2-3):70-78.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/15934099/",
+      publisher: "Disease-a-Month",
+    }),
+    formulaSource({
+      title:
+        "Pannucci CJ, Swistun L, MacDonald JK, Henke PK, Brooke BS. Individualized Venous Thromboembolism Risk Stratification Using the 2005 Caprini Score to Identify the Benefits and Harms of Chemoprophylaxis in Surgical Patients: A Meta-analysis. Ann Surg. 2017;265(6):1094-1103.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/27464617/",
+      publisher: "Annals of Surgery",
+    }),
+  ],
+  compute: (args) => {
+    let agePts: number;
+    if (args.age_y >= 75) agePts = 3;
+    else if (args.age_y >= 61) agePts = 2;
+    else if (args.age_y >= 41) agePts = 1;
+    else agePts = 0;
+
+    const surgeryPts =
+      args.surgery_type === "major_lower_extremity_arthroplasty"
+        ? 5
+        : args.surgery_type === "major"
+          ? 2
+          : args.surgery_type === "minor"
+            ? 1
+            : 0;
+
+    const mobilityPts =
+      args.mobility === "confined_to_bed_72h" ? 2 : args.mobility === "on_bed_rest" ? 1 : 0;
+
+    const onePtFlags: [string, boolean][] = [
+      ["Major surgery last month", args.major_surgery_last_month],
+      ["CHF last month", args.chf_last_month],
+      ["Sepsis last month", args.sepsis_last_month],
+      ["Pneumonia / serious lung disease last month", args.pneumonia_last_month],
+      ["Immobilizing cast", args.immobilizing_cast],
+      ["Varicose veins", args.varicose_veins],
+      ["Current swollen legs", args.current_swollen_legs],
+      ["Inflammatory bowel disease", args.inflammatory_bowel_disease],
+      ["Acute MI last month", args.acute_myocardial_infarction],
+      ["COPD", args.copd],
+    ];
+    const onePtSum = onePtFlags.reduce((sum, [, v]) => sum + (v ? 1 : 0), 0);
+
+    const twoPtSum = (args.central_venous_access ? 2 : 0) + (args.malignancy ? 2 : 0);
+
+    const threePtFlags: boolean[] = [
+      args.previous_dvt,
+      args.previous_pe,
+      args.family_history_thrombosis,
+      args.factor_v_leiden,
+      args.prothrombin_20210a,
+      args.elevated_homocysteine,
+      args.lupus_anticoagulant,
+      args.elevated_anticardiolipin,
+      args.heparin_induced_thrombocytopenia,
+      args.other_thrombophilia,
+    ];
+    const threePtSum = threePtFlags.reduce((sum, v) => sum + (v ? 3 : 0), 0);
+
+    const fivePtFlags: boolean[] = [
+      args.hip_pelvis_leg_fracture_last_month,
+      args.stroke_last_month,
+      args.multiple_trauma_last_month,
+      args.acute_spinal_cord_injury_last_month,
+    ];
+    const fivePtSum = fivePtFlags.reduce((sum, v) => sum + (v ? 5 : 0), 0);
+
+    const bmiPts = args.bmi_kg_m2 >= 25 ? 1 : 0;
+
+    const breakdown = [
+      { component: `Age (${args.age_y}y)`, value: agePts },
+      { component: `Surgery type (${args.surgery_type})`, value: surgeryPts },
+      { component: `BMI ${args.bmi_kg_m2 >= 25 ? "≥25" : "<25"}`, value: bmiPts },
+      { component: "1-pt criteria (sum)", value: onePtSum },
+      { component: "2-pt criteria (sum)", value: twoPtSum },
+      { component: "3-pt criteria (sum)", value: threePtSum },
+      { component: "5-pt acute events (sum)", value: fivePtSum },
+      { component: `Mobility (${args.mobility})`, value: mobilityPts },
+    ];
+    const score = sumBreakdown(breakdown);
+
+    let band: string;
+    let detail: string;
+    if (score === 0) {
+      band = "very low risk (Caprini 0)";
+      detail =
+        "Very low VTE risk. Per ACCP 2012 / ASH 2019, no specific prophylaxis indicated beyond early ambulation.";
+    } else if (score <= 2) {
+      band = `low risk (Caprini ${score})`;
+      detail = "Low VTE risk — mechanical prophylaxis (e.g. SCDs) generally considered sufficient.";
+    } else if (score <= 4) {
+      band = `moderate risk (Caprini ${score})`;
+      detail =
+        "Moderate VTE risk. Mechanical prophylaxis; consider pharmacologic prophylaxis if no high bleeding risk.";
+    } else {
+      band = `high risk (Caprini ≥5; this patient: ${score})`;
+      detail =
+        "High VTE risk. ACCP 2012 / ASH 2019 endorse combined mechanical + pharmacologic prophylaxis (LMWH or low-dose UFH) for surgical patients absent contraindication. Patients in the ≥9 range are extended-duration-prophylaxis candidates (cancer, major orthopedic).";
+    }
+
+    return {
+      result: score,
+      unit: "points",
+      interpretation: { band, detail },
+      breakdown,
+      inputs: { ...args },
+      warnings: [
+        "Implements the 2005 Caprini weights — do not mix with 2010 or 2013 revisions. 'Major surgery' is defined as >45 minutes per Caprini 2005. Validated for surgical inpatients (Pannucci 2017 meta-analysis); performance in medical and obstetric populations is less well established.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
+export const pulmonaryVteCalculators: CalculatorDef[] = [
+  curb65,
+  wellsPe,
+  wellsDvt,
+  pesi,
+  perc,
+  caprini,
+];

@@ -1012,6 +1012,243 @@ describe("MedCalc-Bench tier-4: acid-base delta family", () => {
   });
 });
 
+/* -------------------------------------------------------------------------- */
+/* MedCalc-Bench tier-5: QTc family + OB dating + Caprini                      */
+/* -------------------------------------------------------------------------- */
+
+describe("MedCalc-Bench tier-5: QTc (5 methods, one tool)", () => {
+  // QT 400, HR 60 → RR 1.0 → no correction in any method
+  it("QTc Bazett: QT 400, HR 60 → 400", () => {
+    const r = compute("calc_qtc", {
+      qt_interval_ms: 400,
+      heart_rate_bpm: 60,
+      method: "bazett",
+    });
+    expect(r.result).toBe(400);
+    expect(r.interpretation.band).toContain("normal");
+  });
+
+  it("QTc Bazett: QT 440, HR 100 → 568 (severely prolonged)", () => {
+    const r = compute("calc_qtc", {
+      qt_interval_ms: 440,
+      heart_rate_bpm: 100,
+      method: "bazett",
+    });
+    expect(r.result).toBe(568);
+    expect(r.interpretation.band).toContain("severely prolonged");
+  });
+
+  it("QTc Fridericia: QT 440, HR 100 → 522", () => {
+    // 440 / (0.6)^(1/3) = 440 / 0.8434 = 521.7 → round = 522
+    const r = compute("calc_qtc", {
+      qt_interval_ms: 440,
+      heart_rate_bpm: 100,
+      method: "fridericia",
+    });
+    expect(r.result).toBe(522);
+  });
+
+  it("QTc Framingham: QT 440, HR 100 → 502", () => {
+    const r = compute("calc_qtc", {
+      qt_interval_ms: 440,
+      heart_rate_bpm: 100,
+      method: "framingham",
+    });
+    // 440 + 154 × 0.4 = 440 + 61.6 = 501.6 → 502
+    expect(r.result).toBe(502);
+  });
+
+  it("QTc Hodges: QT 440, HR 100 → 510", () => {
+    const r = compute("calc_qtc", {
+      qt_interval_ms: 440,
+      heart_rate_bpm: 100,
+      method: "hodges",
+    });
+    expect(r.result).toBe(510);
+  });
+
+  it("QTc Rautaharju: QT 440, HR 100 → 538", () => {
+    const r = compute("calc_qtc", {
+      qt_interval_ms: 440,
+      heart_rate_bpm: 100,
+      method: "rautaharju",
+    });
+    // 440 × 220 / 180 = 537.78 → 538
+    expect(r.result).toBe(538);
+  });
+
+  it("QTc default method is Fridericia (FDA ICH-E14 preference)", () => {
+    const r = compute("calc_qtc", {
+      qt_interval_ms: 440,
+      heart_rate_bpm: 100,
+    });
+    expect(r.result).toBe(522); // same as fridericia
+    expect(r.interpretation.detail).toContain("fridericia");
+  });
+
+  it("QTc sex-specific thresholds: 460 ms is normal for male, prolonged for female", () => {
+    const male = compute("calc_qtc", {
+      qt_interval_ms: 460,
+      heart_rate_bpm: 60,
+      method: "bazett",
+      sex: "M",
+    });
+    expect(male.interpretation.band).toContain("prolonged QTc (460 > 450");
+
+    const female = compute("calc_qtc", {
+      qt_interval_ms: 460,
+      heart_rate_bpm: 60,
+      method: "bazett",
+      sex: "F",
+    });
+    expect(female.interpretation.band).toContain("normal");
+  });
+});
+
+describe("MedCalc-Bench tier-5: obstetric dating", () => {
+  it("EDD: LMP 2024-01-01, default 28-day cycle → 2024-10-07", () => {
+    const r = compute("calc_estimated_due_date", { last_menstrual_period_date: "2024-01-01" });
+    expect(r.result).toBe("2024-10-07");
+  });
+
+  it("EDD: LMP 2024-01-01, cycle 32 → 2024-10-11", () => {
+    const r = compute("calc_estimated_due_date", {
+      last_menstrual_period_date: "2024-01-01",
+      cycle_length_days: 32,
+    });
+    expect(r.result).toBe("2024-10-11");
+  });
+
+  it("EDC: LMP 2024-01-01 → 2024-01-15", () => {
+    const r = compute("calc_estimated_conception_date", {
+      last_menstrual_period_date: "2024-01-01",
+    });
+    expect(r.result).toBe("2024-01-15");
+  });
+
+  it("EGA: LMP 2024-01-01, current 2024-04-08 → 14w0d (98 days)", () => {
+    const r = compute("calc_estimated_gestational_age", {
+      last_menstrual_period_date: "2024-01-01",
+      current_date: "2024-04-08",
+    });
+    expect(r.result).toBe(98);
+    expect(r.interpretation.band).toContain("14w0d");
+    expect(r.interpretation.band).toContain("second trimester");
+  });
+
+  it("EGA: LMP 2024-01-01, current 2024-03-15 → 10w4d (74 days)", () => {
+    const r = compute("calc_estimated_gestational_age", {
+      last_menstrual_period_date: "2024-01-01",
+      current_date: "2024-03-15",
+    });
+    expect(r.result).toBe(74);
+    expect(r.interpretation.band).toContain("10w4d");
+  });
+
+  it("EGA: throws if current date is before LMP", () => {
+    expect(() =>
+      compute("calc_estimated_gestational_age", {
+        last_menstrual_period_date: "2024-04-01",
+        current_date: "2024-01-01",
+      }),
+    ).toThrow();
+  });
+
+  it("EGA: rejects malformed date strings", () => {
+    expect(() =>
+      compute("calc_estimated_due_date", { last_menstrual_period_date: "01/01/2024" }),
+    ).toThrow();
+  });
+});
+
+describe("MedCalc-Bench tier-5: Caprini VTE (2005)", () => {
+  const baseline = {
+    age_y: 35,
+    surgery_type: "none" as const,
+    bmi_kg_m2: 22,
+    major_surgery_last_month: false,
+    chf_last_month: false,
+    sepsis_last_month: false,
+    pneumonia_last_month: false,
+    immobilizing_cast: false,
+    varicose_veins: false,
+    current_swollen_legs: false,
+    inflammatory_bowel_disease: false,
+    acute_myocardial_infarction: false,
+    copd: false,
+    central_venous_access: false,
+    malignancy: false,
+    previous_dvt: false,
+    previous_pe: false,
+    family_history_thrombosis: false,
+    factor_v_leiden: false,
+    prothrombin_20210a: false,
+    elevated_homocysteine: false,
+    lupus_anticoagulant: false,
+    elevated_anticardiolipin: false,
+    heparin_induced_thrombocytopenia: false,
+    other_thrombophilia: false,
+    hip_pelvis_leg_fracture_last_month: false,
+    stroke_last_month: false,
+    multiple_trauma_last_month: false,
+    acute_spinal_cord_injury_last_month: false,
+    mobility: "normal" as const,
+  };
+
+  it("Caprini: healthy 35yo, BMI 22, no surgery, no RFs → 0 (very low)", () => {
+    const r = compute("calc_caprini", baseline);
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("very low");
+  });
+
+  it("Caprini: 50yo male, BMI 28, elective major lower-extremity arthroplasty → 7 (high)", () => {
+    const r = compute("calc_caprini", {
+      ...baseline,
+      age_y: 50,
+      bmi_kg_m2: 28,
+      surgery_type: "major_lower_extremity_arthroplasty",
+    });
+    // age 1 + BMI 1 + surgery 5 = 7
+    expect(r.result).toBe(7);
+    expect(r.interpretation.band).toContain("high");
+  });
+
+  it("Caprini: 35yo, minor surgery only → 1 (low)", () => {
+    const r = compute("calc_caprini", {
+      ...baseline,
+      surgery_type: "minor",
+    });
+    // age 0 + surgery 1 = 1
+    expect(r.result).toBe(1);
+    expect(r.interpretation.band).toContain("low");
+  });
+
+  it("Caprini: age 75 contributes 3 points; previous DVT contributes 3", () => {
+    const r = compute("calc_caprini", {
+      ...baseline,
+      age_y: 75,
+      previous_dvt: true,
+    });
+    // age 3 + previous_dvt 3 = 6, qualifies as high
+    expect(r.result).toBe(6);
+    expect(r.interpretation.band).toContain("high");
+  });
+
+  it("Caprini: acute spinal cord injury contributes 5 points", () => {
+    const r = compute("calc_caprini", {
+      ...baseline,
+      acute_spinal_cord_injury_last_month: true,
+    });
+    expect(r.result).toBe(5);
+    expect(r.interpretation.band).toContain("high");
+  });
+
+  it("Caprini: mobility 'confined to bed >72h' contributes 2 points", () => {
+    const r = compute("calc_caprini", { ...baseline, mobility: "confined_to_bed_72h" });
+    expect(r.result).toBe(2);
+  });
+});
+
 describe("Berlin ARDS (tree-class)", () => {
   const baseline = {
     onset_within_1_week: true,

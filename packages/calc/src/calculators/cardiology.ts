@@ -667,6 +667,104 @@ const rcri = defineCalculator({
 
 /* -------------------------------------------------------------------------- */
 
+const qtc = defineCalculator({
+  name: "calc_qtc",
+  title: "Corrected QT Interval (QTc) — five formulas",
+  domain: "cardiology",
+  complexity: "formula",
+  description:
+    "Heart-rate-corrected QT interval. Returns the QTc by the requested method (Bazett, Fridericia, Framingham, Hodges, Rautaharju). AHA/ACCF/HRS 2009 prolongation thresholds: adult male >450 ms, adult female >470 ms; severely prolonged >500 ms; FDA ICH-E14 triggers drug-discontinuation review at QTc >500 ms or ΔQTc >60 ms.",
+  inputSchema: {
+    qt_interval_ms: z.number().positive().describe("QT interval, milliseconds."),
+    heart_rate_bpm: z.number().positive().describe("Heart rate, beats per minute."),
+    sex: z
+      .enum(["M", "F"])
+      .optional()
+      .describe(
+        "Biological sex — used to apply the sex-specific prolongation threshold (male >450, female >470).",
+      ),
+    method: z
+      .enum(["bazett", "fridericia", "framingham", "hodges", "rautaharju"])
+      .optional()
+      .describe(
+        "Correction method. Defaults to `fridericia` (FDA preference per ICH-E14). Bazett over-corrects at HR >90 and under-corrects at HR <60.",
+      ),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Rautaharju PM, Surawicz B, Gettes LS, et al. AHA/ACCF/HRS Recommendations for the Standardization and Interpretation of the Electrocardiogram: Part IV — the ST segment, T and U waves, and the QT interval. J Am Coll Cardiol. 2009;53(11):982-991. (Source of the standard QTc prolongation thresholds.)",
+      url: "https://pubmed.ncbi.nlm.nih.gov/19281930/",
+      publisher: "Journal of the American College of Cardiology",
+    }),
+    formulaSource({
+      title:
+        "Sagie A, Larson MG, Goldberg RJ, Bengtson JR, Levy D. An improved method for adjusting the QT interval for heart rate (the Framingham Heart Study). Am J Cardiol. 1992;70(7):797-801.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/1519533/",
+      publisher: "American Journal of Cardiology",
+    }),
+    formulaSource({
+      title:
+        "Rautaharju PM, Mason JW, Akiyama T. New age- and sex-specific criteria for QT prolongation based on rate correction formulas that minimize bias at the upper normal limits. Int J Cardiol. 2014;174(3):535-540.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/24793593/",
+      publisher: "International Journal of Cardiology",
+    }),
+  ],
+  compute: (args) => {
+    const method = args.method ?? "fridericia";
+    const rrSec = 60 / args.heart_rate_bpm;
+    let qtc: number;
+    switch (method) {
+      case "bazett":
+        qtc = args.qt_interval_ms / Math.sqrt(rrSec);
+        break;
+      case "fridericia":
+        qtc = args.qt_interval_ms / Math.cbrt(rrSec);
+        break;
+      case "framingham":
+        qtc = args.qt_interval_ms + 154 * (1 - rrSec);
+        break;
+      case "hodges":
+        qtc = args.qt_interval_ms + 1.75 * (args.heart_rate_bpm - 60);
+        break;
+      case "rautaharju":
+        qtc = (args.qt_interval_ms * (120 + args.heart_rate_bpm)) / 180;
+        break;
+    }
+    const qtcRounded = Math.round(qtc);
+
+    const prolongedThreshold = args.sex === "F" ? 470 : 450;
+    let band: string;
+    let detail: string;
+    if (qtcRounded < 340) {
+      band = `short QTc (${qtcRounded} < 340 ms, abnormal)`;
+      detail =
+        "Short QTc is abnormal — consider short-QT syndrome, hypercalcemia, hyperkalemia, acidosis, or digitalis effect.";
+    } else if (qtcRounded > 500) {
+      band = `severely prolonged QTc (${qtcRounded} > 500 ms)`;
+      detail = `Severely prolonged QTc. FDA ICH-E14 guidance triggers drug-discontinuation evaluation at >500 ms or ΔQTc >60 ms. Review QT-prolonging drugs, electrolytes (K, Mg), and clinical context (LQTS, bradyarrhythmia). Method: ${method}.`;
+    } else if (qtcRounded > prolongedThreshold) {
+      band = `prolonged QTc (${qtcRounded} > ${prolongedThreshold} ms, ${args.sex === "F" ? "female" : "male"} threshold)`;
+      detail = `Prolonged QTc by AHA/ACCF/HRS 2009 thresholds. Review QT-prolonging medications and electrolytes; serial monitoring is reasonable. Method: ${method}.`;
+    } else {
+      band = `normal QTc (${qtcRounded} ms)`;
+      detail = `QTc within normal limits by AHA/ACCF/HRS 2009 thresholds. Method: ${method}.`;
+    }
+
+    return {
+      result: qtcRounded,
+      unit: "ms",
+      interpretation: { band, detail },
+      inputs: { ...args, method, rr_seconds: Number(rrSec.toFixed(3)) },
+      warnings: [
+        "QTc is invalid in atrial fibrillation or wide-complex rhythms — compute manual JT interval instead. Bazett over-corrects at HR >90 bpm and under-corrects at HR <60; Fridericia (FDA ICH-E14 preference) is more rate-independent. QT should be measured in lead II or V5 with the longest interval present.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
 export const cardiologyCalculators: CalculatorDef[] = [
   chadsVasc,
   hasBled,
@@ -676,4 +774,5 @@ export const cardiologyCalculators: CalculatorDef[] = [
   ldlFriedewald,
   heartScore,
   rcri,
+  qtc,
 ];
