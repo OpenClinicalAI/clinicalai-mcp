@@ -10,6 +10,7 @@ import { hepatologyCalculators } from "./calculators/hepatology.js";
 import { infectiousDiseaseCalculators } from "./calculators/infectious-disease.js";
 import { neurologyCalculators } from "./calculators/neurology.js";
 import { obstetricsCalculators } from "./calculators/obstetrics.js";
+import { pediatricsCalculators } from "./calculators/pediatrics.js";
 import { prognosisCalculators } from "./calculators/prognosis.js";
 import { pulmonaryVteCalculators } from "./calculators/pulmonary-vte.js";
 import { renalCalculators } from "./calculators/renal.js";
@@ -27,6 +28,7 @@ export const ALL_CALCULATORS: CalculatorDef[] = [
   ...infectiousDiseaseCalculators,
   ...obstetricsCalculators,
   ...prognosisCalculators,
+  ...pediatricsCalculators,
   ...compositeCalculators,
 ];
 

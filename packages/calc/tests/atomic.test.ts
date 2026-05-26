@@ -1397,6 +1397,323 @@ describe("MedCalc-Bench tier-6: PSI/PORT", () => {
   });
 });
 
+/* -------------------------------------------------------------------------- */
+/* Pediatrics                                                                   */
+/* -------------------------------------------------------------------------- */
+
+describe("Pediatrics: APGAR", () => {
+  it("Perfect APGAR: pink, ≥100, vigorous cry, active, strong cry → 10", () => {
+    const r = compute("calc_apgar", {
+      appearance: "pink_all_over",
+      pulse: "100_or_over",
+      grimace: "cough_sneeze_cry",
+      activity: "active_motion",
+      respiration: "strong_cry",
+    });
+    expect(r.result).toBe(10);
+    expect(r.interpretation.band).toContain("reassuring");
+  });
+
+  it("Severely depressed: blue, absent, no response, limp, absent → 0", () => {
+    const r = compute("calc_apgar", {
+      appearance: "blue_pale_all_over",
+      pulse: "absent",
+      grimace: "no_response",
+      activity: "limp",
+      respiration: "absent",
+    });
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("severely depressed");
+  });
+
+  it("Moderate band 4–6: pink, <100, grimace, some flexion, weak → 6", () => {
+    // 2 + 1 + 1 + 1 + 1 = 6 (lands at upper end of moderate band)
+    const r = compute("calc_apgar", {
+      appearance: "pink_all_over",
+      pulse: "under_100",
+      grimace: "grimace",
+      activity: "some_flexion",
+      respiration: "weak_irregular",
+    });
+    expect(r.result).toBe(6);
+    expect(r.interpretation.band).toContain("moderately");
+  });
+});
+
+describe("Pediatrics: GCS (modified verbal scale)", () => {
+  it("Best: spontaneous, smiles/coos appropriately, obeys → 15", () => {
+    const r = compute("calc_pediatric_gcs", {
+      best_eye_response: "spontaneous",
+      best_verbal_response: "smiles_coos_cries_appropriately",
+      best_motor_response: "obeys_or_normal_spontaneous_movement",
+    });
+    expect(r.result).toBe(15);
+    expect(r.interpretation.band).toContain("mild");
+  });
+
+  it("Severe: to_pain, persistent_irritable, extension → 3+3+2 = 8", () => {
+    const r = compute("calc_pediatric_gcs", {
+      best_eye_response: "to_pain",
+      best_verbal_response: "persistent_irritable",
+      best_motor_response: "extension_to_pain",
+    });
+    expect(r.result).toBe(7);
+    expect(r.interpretation.band).toContain("severe");
+  });
+});
+
+describe("Pediatrics: Schwartz bedside eGFR", () => {
+  it("Height 100 cm, Cr 0.5 → ~83 mL/min/1.73m²", () => {
+    const r = compute("calc_schwartz_bedside_egfr", {
+      height_cm: 100,
+      serum_creatinine_mg_dl: 0.5,
+      age_y: 5,
+    });
+    // 0.413 × 100 / 0.5 = 82.6 → 83
+    expect(r.result).toBe(83);
+    expect(r.interpretation.band).toContain("G2");
+  });
+
+  it("Age outside 1–18 surfaces validation warning", () => {
+    const r = compute("calc_schwartz_bedside_egfr", {
+      height_cm: 80,
+      serum_creatinine_mg_dl: 0.3,
+      age_y: 0.5,
+    });
+    expect(r.warnings?.join(" ")).toContain("outside the Schwartz validation range");
+  });
+});
+
+describe("Pediatrics: Westley Croup", () => {
+  it("All zero → mild (0/17)", () => {
+    const r = compute("calc_westley_croup", {
+      level_of_consciousness: "normal",
+      cyanosis: "none",
+      stridor: "none",
+      air_entry: "normal",
+      retractions: "none",
+    });
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("mild");
+  });
+
+  it("Cyanosis at rest + disoriented → impending respiratory failure", () => {
+    const r = compute("calc_westley_croup", {
+      level_of_consciousness: "disoriented",
+      cyanosis: "at_rest",
+      stridor: "at_rest",
+      air_entry: "markedly_decreased",
+      retractions: "severe",
+    });
+    // 5 + 5 + 2 + 2 + 3 = 17
+    expect(r.result).toBe(17);
+    expect(r.interpretation.band).toContain("impending");
+  });
+});
+
+describe("Pediatrics: PRAM", () => {
+  it("All normal → 0 (mild)", () => {
+    const r = compute("calc_pram", {
+      suprasternal_retractions: "absent",
+      scalene_retractions: "absent",
+      air_entry: "normal",
+      wheezing: "absent",
+      oxygen_saturation: "over_95",
+    });
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("mild");
+  });
+
+  it("Severe asthma exacerbation maxes at 12", () => {
+    const r = compute("calc_pram", {
+      suprasternal_retractions: "present",
+      scalene_retractions: "present",
+      air_entry: "minimal_or_absent",
+      wheezing: "audible_without_stethoscope_or_silent_chest",
+      oxygen_saturation: "under_92",
+    });
+    expect(r.result).toBe(12);
+    expect(r.interpretation.band).toContain("severe");
+  });
+});
+
+describe("Pediatrics: FLACC", () => {
+  it("All zeros → no pain (0)", () => {
+    const r = compute("calc_flacc", {
+      face: "no_expression",
+      legs: "normal",
+      activity: "lying_quiet",
+      cry: "no_cry",
+      consolability: "content_relaxed",
+    });
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("no pain");
+  });
+
+  it("All twos → severe (10/10)", () => {
+    const r = compute("calc_flacc", {
+      face: "frequent_quivering_chin_clenched_jaw",
+      legs: "kicking_or_drawn_up",
+      activity: "arched_rigid_or_jerking",
+      cry: "crying_steadily_screaming_sobbing",
+      consolability: "difficult_to_console",
+    });
+    expect(r.result).toBe(10);
+    expect(r.interpretation.band).toContain("severe");
+  });
+});
+
+describe("Pediatrics: Wong-Baker FACES", () => {
+  it("Face 0 (no hurt) → band 'no hurt'", () => {
+    const r = compute("calc_wong_baker_faces", { selected_face_value: 0 });
+    expect(r.interpretation.band).toContain("no hurt");
+  });
+
+  it("Face 8 (whole lot) → severe", () => {
+    const r = compute("calc_wong_baker_faces", { selected_face_value: 8 });
+    expect(r.interpretation.band).toContain("severe");
+  });
+});
+
+describe("Pediatrics: Kocher septic hip", () => {
+  it("All four criteria met → 4 (~99% probability)", () => {
+    const r = compute("calc_kocher_arthritis", {
+      non_weight_bearing: true,
+      fever_over_38_5c: true,
+      esr_over_40: true,
+      wbc_over_12k: true,
+    });
+    expect(r.result).toBe(4);
+    expect(r.interpretation.band).toContain("99%");
+  });
+
+  it("No criteria → 0 (~0.2%)", () => {
+    const r = compute("calc_kocher_arthritis", {
+      non_weight_bearing: false,
+      fever_over_38_5c: false,
+      esr_over_40: false,
+      wbc_over_12k: false,
+    });
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("0.2%");
+  });
+});
+
+describe("Pediatrics: Trauma Score (Tepas)", () => {
+  it("Well-appearing >20 kg child → +12", () => {
+    const r = compute("calc_pediatric_trauma_score", {
+      weight_band: "over_20kg",
+      airway: "normal",
+      sbp_band: "over_90_mmHg",
+      cns_status: "awake",
+      open_wound: "none",
+      fracture: "none",
+    });
+    expect(r.result).toBe(12);
+    expect(r.interpretation.band).toContain("low risk");
+  });
+
+  it("Critically injured infant <10 kg → −6 (high risk)", () => {
+    const r = compute("calc_pediatric_trauma_score", {
+      weight_band: "under_10kg",
+      airway: "unmaintainable",
+      sbp_band: "under_50_mmHg_or_unobtainable",
+      cns_status: "comatose",
+      open_wound: "major_or_penetrating",
+      fracture: "open_or_multiple",
+    });
+    expect(r.result).toBe(-6);
+    expect(r.interpretation.band).toContain("high risk");
+  });
+});
+
+describe("Pediatrics: PECARN head injury (tree-class)", () => {
+  const reassuring2yPlus = {
+    age_y: 5,
+    gcs: 15,
+    altered_mental_status: false,
+    loss_of_consciousness: false,
+    severe_mechanism: false,
+    signs_of_basilar_skull_fracture: false,
+    severe_headache: false,
+    vomiting: false,
+  };
+
+  it("≥2y with no predictors → very-low-risk (no CT)", () => {
+    const r = compute("calc_pecarn_head", reassuring2yPlus);
+    expect(r.result).toBe("very-low-risk");
+    expect(r.interpretation.band).toContain("very low");
+  });
+
+  it("≥2y with GCS 14 → high-risk", () => {
+    const r = compute("calc_pecarn_head", { ...reassuring2yPlus, gcs: 14 });
+    expect(r.result).toBe("high-risk");
+  });
+
+  it("≥2y with isolated vomiting → intermediate-risk", () => {
+    const r = compute("calc_pecarn_head", { ...reassuring2yPlus, vomiting: true });
+    expect(r.result).toBe("intermediate-risk");
+  });
+
+  it("<2y rule uses palpable skull fracture, not basilar signs", () => {
+    const r = compute("calc_pecarn_head", {
+      age_y: 1,
+      gcs: 15,
+      altered_mental_status: false,
+      loss_of_consciousness: false,
+      severe_mechanism: false,
+      palpable_skull_fracture: true,
+    });
+    expect(r.result).toBe("high-risk");
+    expect(r.interpretation.detail).toContain("palpable skull fracture");
+  });
+});
+
+describe("Pediatrics: ISPAD DKA severity", () => {
+  it("pH 7.35, HCO₃ 18 → no DKA", () => {
+    const r = compute("calc_ispad_peds_dka", { venous_ph: 7.35, bicarbonate_mmol_l: 18 });
+    expect(r.result).toBe("no-dka");
+  });
+
+  it("pH 7.25, HCO₃ 12 → mild", () => {
+    const r = compute("calc_ispad_peds_dka", { venous_ph: 7.25, bicarbonate_mmol_l: 12 });
+    expect(r.result).toBe("mild");
+  });
+
+  it("pH 7.15, HCO₃ 8 → moderate", () => {
+    const r = compute("calc_ispad_peds_dka", { venous_ph: 7.15, bicarbonate_mmol_l: 8 });
+    expect(r.result).toBe("moderate");
+  });
+
+  it("pH 7.05, HCO₃ 4 → severe (use more severe of pH or HCO₃)", () => {
+    const r = compute("calc_ispad_peds_dka", { venous_ph: 7.05, bicarbonate_mmol_l: 4 });
+    expect(r.result).toBe("severe");
+  });
+});
+
+describe("Pediatrics: Oxygenation Index (PALICC-2)", () => {
+  it("MAP 10, FiO₂ 0.5, PaO₂ 100 → OI 5 (mild ARDS)", () => {
+    const r = compute("calc_oxygenation_index", {
+      mean_airway_pressure_cm_h2o: 10,
+      fio2: 0.5,
+      pao2_mm_hg: 100,
+    });
+    // (10 × 0.5 × 100) / 100 = 5
+    expect(r.result).toBe(5);
+    expect(r.interpretation.band).toContain("mild");
+  });
+
+  it("MAP 20, FiO₂ 1.0, PaO₂ 80 → OI 25 (severe)", () => {
+    const r = compute("calc_oxygenation_index", {
+      mean_airway_pressure_cm_h2o: 20,
+      fio2: 1.0,
+      pao2_mm_hg: 80,
+    });
+    expect(r.result).toBe(25);
+    expect(r.interpretation.band).toContain("severe");
+  });
+});
+
 describe("Berlin ARDS (tree-class)", () => {
   const baseline = {
     onset_within_1_week: true,
