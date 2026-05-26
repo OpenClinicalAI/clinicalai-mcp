@@ -528,3 +528,329 @@ describe("label resolver fallback", () => {
     expect(result.warnings?.join(" ")).toContain("made-up-drug");
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* Pass A drug-dosing tools                                                    */
+/* -------------------------------------------------------------------------- */
+
+describe("calc_vancomycin_auc_dose", () => {
+  it("computes a reasonable starting regimen for a 70 kg adult with CrCl 80", async () => {
+    const result = await tool("calc_vancomycin_auc_dose").handler(
+      { weight_kg: 70, crcl_ml_min: 80 },
+      buildContext(),
+    );
+    const data = result.data as {
+      loading_dose_mg: number;
+      maintenance_dose_mg: number;
+      interval_hr: number;
+    };
+    // Loading: 25 mg/kg × 70 = 1750 mg
+    expect(data.loading_dose_mg).toBe(1750);
+    // Maintenance > 0 and a clinical interval
+    expect(data.maintenance_dose_mg).toBeGreaterThan(0);
+    expect([8, 12, 24, 36]).toContain(data.interval_hr);
+  });
+
+  it("caps loading dose at 3000 mg for large patients", async () => {
+    const result = await tool("calc_vancomycin_auc_dose").handler(
+      { weight_kg: 150, crcl_ml_min: 90 },
+      buildContext(),
+    );
+    const data = result.data as { loading_dose_mg: number };
+    expect(data.loading_dose_mg).toBe(3000);
+  });
+});
+
+describe("calc_aminoglycoside_hartford", () => {
+  it("gentamicin 70 kg, CrCl 80 → 490 mg q24h", async () => {
+    const r = await tool("calc_aminoglycoside_hartford").handler(
+      { drug: "gentamicin", weight_kg: 70, crcl_ml_min: 80 },
+      buildContext(),
+    );
+    const data = r.data as { loading_dose_mg: number; interval: string };
+    expect(data.loading_dose_mg).toBe(490);
+    expect(data.interval).toBe("q24h");
+  });
+
+  it("amikacin uses 15 mg/kg loading", async () => {
+    const r = await tool("calc_aminoglycoside_hartford").handler(
+      { drug: "amikacin", weight_kg: 70, crcl_ml_min: 80 },
+      buildContext(),
+    );
+    const data = r.data as { loading_dose_mg: number };
+    expect(data.loading_dose_mg).toBe(1050);
+  });
+
+  it("CrCl 40–59 → q36h", async () => {
+    const r = await tool("calc_aminoglycoside_hartford").handler(
+      { drug: "gentamicin", weight_kg: 60, crcl_ml_min: 45 },
+      buildContext(),
+    );
+    const data = r.data as { interval: string };
+    expect(data.interval).toBe("q36h");
+  });
+
+  it("CrCl <20 falls outside Hartford → individualized", async () => {
+    const r = await tool("calc_aminoglycoside_hartford").handler(
+      { drug: "gentamicin", weight_kg: 60, crcl_ml_min: 15 },
+      buildContext(),
+    );
+    const data = r.data as { interval: string };
+    expect(data.interval).toBe("individualized");
+  });
+});
+
+describe("calc_carboplatin_calvert", () => {
+  it("CrCl 100, AUC 6 → dose 750 mg", async () => {
+    const r = await tool("calc_carboplatin_calvert").handler(
+      { target_auc: 6, crcl_ml_min: 100 },
+      buildContext(),
+    );
+    const data = r.data as { carboplatin_dose_mg: number; gfr_was_capped: boolean };
+    // 6 × (100 + 25) = 750
+    expect(data.carboplatin_dose_mg).toBe(750);
+    expect(data.gfr_was_capped).toBe(false);
+  });
+
+  it("FDA caps GFR at 125 mL/min for dose calculation", async () => {
+    const r = await tool("calc_carboplatin_calvert").handler(
+      { target_auc: 5, crcl_ml_min: 200 },
+      buildContext(),
+    );
+    const data = r.data as { carboplatin_dose_mg: number; gfr_was_capped: boolean };
+    // Capped at 125: 5 × (125 + 25) = 750
+    expect(data.carboplatin_dose_mg).toBe(750);
+    expect(data.gfr_was_capped).toBe(true);
+  });
+});
+
+describe("calc_mme_total_daily", () => {
+  it("oxycodone 10 mg × 4 + hydrocodone 5 mg × 4 → 80 MME/day (increased risk)", async () => {
+    const r = await tool("calc_mme_total_daily").handler(
+      {
+        regimen: [
+          { drug: "oxycodone", dose_mg: 10, doses_per_day: 4 },
+          { drug: "hydrocodone", dose_mg: 5, doses_per_day: 4 },
+        ],
+      },
+      buildContext(),
+    );
+    const data = r.data as { total_mme_per_day: number; interpretation: { band: string } };
+    // (10 × 4 × 1.5) + (5 × 4 × 1) = 60 + 20 = 80
+    expect(data.total_mme_per_day).toBe(80);
+    expect(data.interpretation.band).toContain("increased overdose risk");
+  });
+
+  it("methadone uses tiered CDC 2022 factors (NOT flat 4.7)", async () => {
+    const r = await tool("calc_mme_total_daily").handler(
+      { regimen: [{ drug: "methadone", dose_mg: 30, doses_per_day: 1 }] },
+      buildContext(),
+    );
+    const data = r.data as { total_mme_per_day: number };
+    // 30 mg/day → falls in 21-40 band → factor 8 → 240 MME
+    expect(data.total_mme_per_day).toBe(240);
+  });
+
+  it("≥90 MME/day → high risk band", async () => {
+    const r = await tool("calc_mme_total_daily").handler(
+      { regimen: [{ drug: "morphine", dose_mg: 50, doses_per_day: 2 }] },
+      buildContext(),
+    );
+    const data = r.data as { total_mme_per_day: number; interpretation: { band: string } };
+    expect(data.total_mme_per_day).toBe(100);
+    expect(data.interpretation.band).toContain("high risk");
+  });
+});
+
+describe("calc_opioid_equianalgesic", () => {
+  it("morphine 30 mg/day → hydromorphone 4.2 mg/day with default 30% reduction", async () => {
+    const r = await tool("calc_opioid_equianalgesic").handler(
+      { source_drug: "morphine", source_daily_dose_mg: 30, target_drug: "hydromorphone" },
+      buildContext(),
+    );
+    const data = r.data as { target_recommended_starting_mg: number; source_mme: number };
+    expect(data.source_mme).toBe(30);
+    // Equipotent: 30 / 5 = 6 mg/day hydromorphone, ×0.7 = 4.2
+    expect(data.target_recommended_starting_mg).toBe(4.2);
+  });
+
+  it("explicit 50% reduction halves the equipotent dose", async () => {
+    const r = await tool("calc_opioid_equianalgesic").handler(
+      {
+        source_drug: "morphine",
+        source_daily_dose_mg: 60,
+        target_drug: "oxycodone",
+        cross_tolerance_reduction_pct: 50,
+      },
+      buildContext(),
+    );
+    const data = r.data as { target_recommended_starting_mg: number };
+    // 60 mg morphine = 60 MME; oxycodone equipotent: 60 / 1.5 = 40 mg; × 0.5 = 20 mg
+    expect(data.target_recommended_starting_mg).toBe(20);
+  });
+});
+
+describe("calc_heparin_weight_based", () => {
+  it("VTE 80 kg → 6400 U bolus + 1440 U/hr (no cap)", async () => {
+    const r = await tool("calc_heparin_weight_based").handler(
+      { weight_kg: 80, indication: "vte" },
+      buildContext(),
+    );
+    const data = r.data as {
+      bolus_units: number;
+      infusion_units_per_hr: number;
+      bolus_capped: boolean;
+      infusion_capped: boolean;
+    };
+    expect(data.bolus_units).toBe(6400);
+    expect(data.infusion_units_per_hr).toBe(1440);
+    expect(data.bolus_capped).toBe(false);
+    expect(data.infusion_capped).toBe(false);
+  });
+
+  it("ACS caps bolus at 4000 U and infusion at 1000 U/hr for heavy patients", async () => {
+    const r = await tool("calc_heparin_weight_based").handler(
+      { weight_kg: 100, indication: "acs" }, // 100 × 60 = 6000 → cap 4000; 100 × 12 = 1200 → cap 1000
+      buildContext(),
+    );
+    const data = r.data as {
+      bolus_units: number;
+      infusion_units_per_hr: number;
+      bolus_capped: boolean;
+      infusion_capped: boolean;
+    };
+    expect(data.bolus_units).toBe(4000);
+    expect(data.infusion_units_per_hr).toBe(1000);
+    expect(data.bolus_capped).toBe(true);
+    expect(data.infusion_capped).toBe(true);
+  });
+});
+
+describe("calc_4fpcc_kcentra", () => {
+  it("80 kg, INR 3 → 25 IU/kg = 2000 IU", async () => {
+    const r = await tool("calc_4fpcc_kcentra").handler({ weight_kg: 80, inr: 3 }, buildContext());
+    const data = r.data as { kcentra_dose_iu: number };
+    expect(data.kcentra_dose_iu).toBe(2000);
+  });
+
+  it("80 kg, INR 5 → 35 IU/kg = 2800 IU", async () => {
+    const r = await tool("calc_4fpcc_kcentra").handler({ weight_kg: 80, inr: 5 }, buildContext());
+    const data = r.data as { kcentra_dose_iu: number };
+    expect(data.kcentra_dose_iu).toBe(2800);
+  });
+
+  it("80 kg, INR 8 → 50 IU/kg = 4000 IU (under absolute cap)", async () => {
+    const r = await tool("calc_4fpcc_kcentra").handler({ weight_kg: 80, inr: 8 }, buildContext());
+    const data = r.data as { kcentra_dose_iu: number };
+    expect(data.kcentra_dose_iu).toBe(4000);
+  });
+
+  it("Heavy patient INR 8 caps at 5000 IU (FDA weight cap at 100 kg + band max)", async () => {
+    const r = await tool("calc_4fpcc_kcentra").handler({ weight_kg: 130, inr: 8 }, buildContext());
+    const data = r.data as { kcentra_dose_iu: number; weight_was_capped: boolean };
+    // 100 kg × 50 = 5000
+    expect(data.kcentra_dose_iu).toBe(5000);
+    expect(data.weight_was_capped).toBe(true);
+  });
+
+  it("INR < 2 is below the reversal threshold — throws", async () => {
+    await expect(
+      tool("calc_4fpcc_kcentra").handler({ weight_kg: 80, inr: 1.5 }, buildContext()),
+    ).rejects.toThrow();
+  });
+});
+
+describe("calc_sodium_correction_rate", () => {
+  it("Hyponatremia chronic correction → max 8 mEq/L per 24h", async () => {
+    const r = await tool("calc_sodium_correction_rate").handler(
+      { current_sodium_mmol_l: 120, target_sodium_mmol_l: 135, chronicity: "chronic" },
+      buildContext(),
+    );
+    const data = r.data as { max_per_24h_mmol_l: number; minimum_hours_to_reach_target: number };
+    expect(data.max_per_24h_mmol_l).toBe(8);
+    // delta = 15, at 8/24h → 15/8 × 24 = 45 hr
+    expect(data.minimum_hours_to_reach_target).toBe(45);
+  });
+
+  it("Hyponatremia acute documented <24h → max 12 mEq/L per 24h", async () => {
+    const r = await tool("calc_sodium_correction_rate").handler(
+      {
+        current_sodium_mmol_l: 120,
+        target_sodium_mmol_l: 135,
+        chronicity: "acute_documented_under_24h",
+      },
+      buildContext(),
+    );
+    const data = r.data as { max_per_24h_mmol_l: number };
+    expect(data.max_per_24h_mmol_l).toBe(12);
+  });
+
+  it("Hypernatremia (target < current) → 10 mEq/L per 24h cap", async () => {
+    const r = await tool("calc_sodium_correction_rate").handler(
+      { current_sodium_mmol_l: 160, target_sodium_mmol_l: 145, chronicity: "chronic" },
+      buildContext(),
+    );
+    const data = r.data as { direction: string; max_per_24h_mmol_l: number };
+    expect(data.direction).toBe("decrease");
+    expect(data.max_per_24h_mmol_l).toBe(10);
+  });
+});
+
+describe("flag_beers_criteria", () => {
+  it("diphenhydramine in 75yo → flagged 'avoid'", async () => {
+    const r = await tool("flag_beers_criteria").handler(
+      { drug_name: "diphenhydramine", age_y: 75 },
+      buildContext(),
+    );
+    const data = r.data as {
+      flagged: boolean;
+      severity: string;
+      rationale: string;
+      alternative_class?: string;
+    };
+    expect(data.flagged).toBe(true);
+    expect(data.severity).toBe("avoid");
+    expect(data.rationale).toContain("anticholinergic");
+    expect(data.alternative_class).toContain("loratadine");
+  });
+
+  it("diphenhydramine in 50yo → not_flagged (age <65)", async () => {
+    const r = await tool("flag_beers_criteria").handler(
+      { drug_name: "diphenhydramine", age_y: 50 },
+      buildContext(),
+    );
+    const data = r.data as { flagged: boolean; severity: string };
+    expect(data.flagged).toBe(false);
+    expect(data.severity).toBe("not_flagged");
+  });
+
+  it("Unknown drug in 75yo → not_flagged with explicit caveat about v0.1 subset", async () => {
+    const r = await tool("flag_beers_criteria").handler(
+      { drug_name: "acetaminophen", age_y: 75 },
+      buildContext(),
+    );
+    const data = r.data as { flagged: boolean; rationale: string };
+    expect(data.flagged).toBe(false);
+    expect(data.rationale).toContain("v0.1 Beers high-traffic subset");
+  });
+
+  it("zolpidem in 80yo → flagged 'avoid' with alternative", async () => {
+    const r = await tool("flag_beers_criteria").handler(
+      { drug_name: "zolpidem", age_y: 80 },
+      buildContext(),
+    );
+    const data = r.data as { flagged: boolean; severity: string; alternative_class?: string };
+    expect(data.flagged).toBe(true);
+    expect(data.severity).toBe("avoid");
+    expect(data.alternative_class).toContain("CBT-I");
+  });
+
+  it("haloperidol in 75yo → 'use_with_caution' (not avoid)", async () => {
+    const r = await tool("flag_beers_criteria").handler(
+      { drug_name: "haloperidol", age_y: 75 },
+      buildContext(),
+    );
+    const data = r.data as { severity: string };
+    expect(data.severity).toBe("use_with_caution");
+  });
+});
