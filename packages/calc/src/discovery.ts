@@ -30,6 +30,7 @@ const CALCULATOR_DOMAINS = [
   "endocrinology",
   "oncology",
   "emergency-medicine",
+  "prognosis-general",
   "composite",
 ] as const;
 

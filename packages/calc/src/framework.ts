@@ -38,6 +38,7 @@ export type CalculatorDomain =
   | "endocrinology"
   | "oncology"
   | "emergency-medicine"
+  | "prognosis-general"
   | "composite";
 
 /** Implementation-pattern signal (see file header for semantics). */

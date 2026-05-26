@@ -549,6 +549,147 @@ const caprini = defineCalculator({
 
 /* -------------------------------------------------------------------------- */
 
+const psiPort = defineCalculator({
+  name: "calc_psi_port",
+  title: "Pneumonia Severity Index (PSI / PORT)",
+  domain: "pulmonary-vte",
+  complexity: "lookup",
+  description:
+    "PORT prediction rule (Fine 1997) for community-acquired pneumonia mortality. Class I (low-risk shortcut: age <50, no comorbidities, normal vitals/mentation) is assigned without summing; Class II–V are point-based. IDSA/ATS 2019 endorses Class I–II for outpatient, III for observation, IV–V for admission (V often ICU).",
+  inputSchema: {
+    age_y: z.number().int().nonnegative().describe("Age in years."),
+    sex: z.enum(["M", "F"]).describe("Biological sex (female subtracts 10 from age points)."),
+    nursing_home_resident: z.boolean().describe("Nursing-home resident."),
+    neoplastic_disease: z.boolean().describe("Active neoplastic disease or within 1 year."),
+    liver_disease_history: z
+      .boolean()
+      .describe("Clinical or laboratory cirrhosis (NOT uncomplicated fatty liver)."),
+    congestive_heart_failure: z.boolean().describe("History of CHF."),
+    cerebrovascular_disease: z.boolean().describe("History of CVA or TIA."),
+    renal_disease: z.boolean().describe("History of renal disease."),
+    altered_mental_status: z.boolean().describe("New disorientation / altered mental status."),
+    respiratory_rate_per_min: z.number().nonnegative().describe("Respiratory rate, breaths/min."),
+    systolic_bp_mm_hg: z.number().positive().describe("Systolic blood pressure, mmHg."),
+    temperature_c: z.number().describe("Body temperature, °C."),
+    pulse_bpm: z.number().positive().describe("Pulse rate, bpm."),
+    arterial_ph: z.number().positive().describe("Arterial pH."),
+    bun_mg_dl: z.number().positive().describe("Blood urea nitrogen, mg/dL."),
+    sodium_mmol_l: z.number().positive().describe("Serum sodium, mmol/L."),
+    glucose_mg_dl: z.number().positive().describe("Serum glucose, mg/dL."),
+    hematocrit_percent: z.number().positive().describe("Hematocrit, %."),
+    pao2_mm_hg: z.number().positive().describe("Arterial PaO₂, mmHg."),
+    pleural_effusion_on_xray: z.boolean().describe("Pleural effusion on chest X-ray."),
+  },
+  sources: [
+    formulaSource({
+      title:
+        "Fine MJ, Auble TE, Yealy DM, et al. A prediction rule to identify low-risk patients with community-acquired pneumonia. N Engl J Med. 1997;336(4):243-250.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/9412649/",
+      publisher: "New England Journal of Medicine",
+    }),
+    formulaSource({
+      title:
+        "Metlay JP, Waterer GW, Long AC, et al. Diagnosis and Treatment of Adults with Community-acquired Pneumonia. An Official Clinical Practice Guideline of the American Thoracic Society and Infectious Diseases Society of America. Am J Respir Crit Care Med. 2019;200(7):e45-e67.",
+      url: "https://pubmed.ncbi.nlm.nih.gov/31573350/",
+      publisher: "American Journal of Respiratory and Critical Care Medicine (ATS/IDSA)",
+    }),
+  ],
+  compute: (args) => {
+    // Class I shortcut: <50, no listed comorbidity, no AMS, vitals/labs all in normal range.
+    const anyComorbidity =
+      args.nursing_home_resident ||
+      args.neoplastic_disease ||
+      args.liver_disease_history ||
+      args.congestive_heart_failure ||
+      args.cerebrovascular_disease ||
+      args.renal_disease;
+    const anyDerangement =
+      args.altered_mental_status ||
+      args.respiratory_rate_per_min >= 30 ||
+      args.systolic_bp_mm_hg < 90 ||
+      args.temperature_c < 35 ||
+      args.temperature_c > 39.9 ||
+      args.pulse_bpm >= 125;
+
+    if (args.age_y < 50 && !anyComorbidity && !anyDerangement) {
+      return {
+        result: 0,
+        unit: "points",
+        interpretation: {
+          band: "Class I (~0.1% 30-day mortality)",
+          detail:
+            "Class I: age <50, no listed comorbidity, no derangement on presentation. IDSA/ATS 2019 supports outpatient management.",
+        },
+        inputs: { ...args, psi_class: 1 },
+      };
+    }
+
+    // Point-based computation for Classes II–V.
+    const agePts = args.sex === "F" ? args.age_y - 10 : args.age_y;
+    const breakdown: { component: string; value: number }[] = [
+      { component: `Age (${args.sex === "F" ? "−10 female" : "male"})`, value: agePts },
+    ];
+    if (args.nursing_home_resident)
+      breakdown.push({ component: "Nursing home resident", value: 10 });
+    if (args.neoplastic_disease) breakdown.push({ component: "Neoplastic disease", value: 30 });
+    if (args.liver_disease_history) breakdown.push({ component: "Liver disease", value: 20 });
+    if (args.congestive_heart_failure) breakdown.push({ component: "CHF", value: 10 });
+    if (args.cerebrovascular_disease)
+      breakdown.push({ component: "Cerebrovascular disease", value: 10 });
+    if (args.renal_disease) breakdown.push({ component: "Renal disease", value: 10 });
+    if (args.altered_mental_status)
+      breakdown.push({ component: "Altered mental status", value: 20 });
+    if (args.respiratory_rate_per_min >= 30) breakdown.push({ component: "RR ≥30", value: 20 });
+    if (args.systolic_bp_mm_hg < 90) breakdown.push({ component: "SBP <90", value: 20 });
+    if (args.temperature_c < 35 || args.temperature_c > 39.9)
+      breakdown.push({ component: "Temp <35 or >39.9°C", value: 15 });
+    if (args.pulse_bpm >= 125) breakdown.push({ component: "Pulse ≥125", value: 10 });
+    if (args.arterial_ph < 7.35) breakdown.push({ component: "pH <7.35", value: 30 });
+    if (args.bun_mg_dl >= 30) breakdown.push({ component: "BUN ≥30", value: 20 });
+    if (args.sodium_mmol_l < 130) breakdown.push({ component: "Na <130", value: 20 });
+    if (args.glucose_mg_dl >= 250) breakdown.push({ component: "Glucose ≥250", value: 10 });
+    if (args.hematocrit_percent < 30) breakdown.push({ component: "Hct <30%", value: 10 });
+    if (args.pao2_mm_hg < 60) breakdown.push({ component: "PaO₂ <60", value: 10 });
+    if (args.pleural_effusion_on_xray) breakdown.push({ component: "Pleural effusion", value: 10 });
+
+    const score = sumBreakdown(breakdown);
+
+    let psiClass: number;
+    let band: string;
+    let detail: string;
+    if (score <= 70) {
+      psiClass = 2;
+      band = `Class II (${score} points, ~0.6% 30-day mortality)`;
+      detail = "Class II — IDSA/ATS 2019 generally supports outpatient management.";
+    } else if (score <= 90) {
+      psiClass = 3;
+      band = `Class III (${score} points, ~0.9–2.8% 30-day mortality)`;
+      detail = "Class III — short-stay observation or low-acuity admission.";
+    } else if (score <= 130) {
+      psiClass = 4;
+      band = `Class IV (${score} points, ~8.2–9.3% 30-day mortality)`;
+      detail = "Class IV — inpatient admission indicated.";
+    } else {
+      psiClass = 5;
+      band = `Class V (${score} points, ~27–29% 30-day mortality)`;
+      detail = "Class V — admit and assess for ICU-level care.";
+    }
+
+    return {
+      result: score,
+      unit: "points",
+      interpretation: { band, detail },
+      breakdown,
+      inputs: { ...args, psi_class: psiClass },
+      warnings: [
+        "PSI underestimates risk in elderly patients with absent vital-sign derangement (a known limitation; CURB-65 may be more sensitive in that population). Liver disease per Fine 1997 means clinical/laboratory cirrhosis, not uncomplicated fatty liver.",
+      ],
+    };
+  },
+});
+
+/* -------------------------------------------------------------------------- */
+
 export const pulmonaryVteCalculators: CalculatorDef[] = [
   curb65,
   wellsPe,
@@ -556,4 +697,5 @@ export const pulmonaryVteCalculators: CalculatorDef[] = [
   pesi,
   perc,
   caprini,
+  psiPort,
 ];

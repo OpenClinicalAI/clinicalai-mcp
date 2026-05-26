@@ -1249,6 +1249,154 @@ describe("MedCalc-Bench tier-5: Caprini VTE (2005)", () => {
   });
 });
 
+/* -------------------------------------------------------------------------- */
+/* MedCalc-Bench tier-6: Charlson + PSI/PORT (the heavies)                     */
+/* -------------------------------------------------------------------------- */
+
+describe("MedCalc-Bench tier-6: Charlson Comorbidity Index", () => {
+  const baseline = {
+    age_y: 30,
+    myocardial_infarction: false,
+    congestive_heart_failure: false,
+    peripheral_vascular_disease: false,
+    cerebrovascular_accident_or_tia: false,
+    dementia: false,
+    chronic_pulmonary_disease: false,
+    connective_tissue_disease: false,
+    peptic_ulcer_disease: false,
+    liver_disease: "none" as const,
+    diabetes_mellitus: "none_or_diet" as const,
+    hemiplegia: false,
+    moderate_to_severe_ckd: false,
+    solid_tumor: "none" as const,
+    leukemia: false,
+    lymphoma: false,
+    aids: false,
+  };
+
+  it("Charlson: healthy 30yo → 0 (98% 10y survival)", () => {
+    const r = compute("calc_charlson", baseline);
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("98%");
+  });
+
+  it("Charlson: 75yo with COPD, uncomplicated DM, prior MI → 6", () => {
+    const r = compute("calc_charlson", {
+      ...baseline,
+      age_y: 75, // age 3
+      chronic_pulmonary_disease: true, // 1
+      diabetes_mellitus: "uncomplicated", // 1
+      myocardial_infarction: true, // 1
+    });
+    expect(r.result).toBe(6);
+    expect(r.interpretation.band).toContain("21%");
+  });
+
+  it("Charlson: 60yo with metastatic colon cancer + mild liver disease → 9", () => {
+    const r = compute("calc_charlson", {
+      ...baseline,
+      age_y: 60, // age 2
+      solid_tumor: "metastatic", // 6
+      liver_disease: "mild", // 1
+    });
+    expect(r.result).toBe(9);
+  });
+
+  it("Charlson: AIDS contributes 6 points", () => {
+    const r = compute("calc_charlson", { ...baseline, aids: true });
+    expect(r.result).toBe(6);
+  });
+
+  it("Charlson: moderate-to-severe liver disease contributes 3 points", () => {
+    const r = compute("calc_charlson", { ...baseline, liver_disease: "moderate_to_severe" });
+    expect(r.result).toBe(3);
+  });
+
+  it("Charlson: DM with end-organ damage contributes 2 points", () => {
+    const r = compute("calc_charlson", { ...baseline, diabetes_mellitus: "end_organ_damage" });
+    expect(r.result).toBe(2);
+  });
+
+  it("Charlson: age 85 contributes 4 points (highest age bracket)", () => {
+    const r = compute("calc_charlson", { ...baseline, age_y: 85 });
+    expect(r.result).toBe(4);
+  });
+});
+
+describe("MedCalc-Bench tier-6: PSI/PORT", () => {
+  const baseline = {
+    age_y: 45,
+    sex: "M" as const,
+    nursing_home_resident: false,
+    neoplastic_disease: false,
+    liver_disease_history: false,
+    congestive_heart_failure: false,
+    cerebrovascular_disease: false,
+    renal_disease: false,
+    altered_mental_status: false,
+    respiratory_rate_per_min: 16,
+    systolic_bp_mm_hg: 120,
+    temperature_c: 37.0,
+    pulse_bpm: 80,
+    arterial_ph: 7.4,
+    bun_mg_dl: 14,
+    sodium_mmol_l: 140,
+    glucose_mg_dl: 100,
+    hematocrit_percent: 42,
+    pao2_mm_hg: 90,
+    pleural_effusion_on_xray: false,
+  };
+
+  it("PSI: 45yo male, no comorbidities, normal vitals → Class I (~0.1%)", () => {
+    const r = compute("calc_psi_port", baseline);
+    expect(r.result).toBe(0);
+    expect(r.interpretation.band).toContain("Class I");
+    expect((r.inputs as { psi_class: number }).psi_class).toBe(1);
+  });
+
+  it("PSI: 75yo female nursing home + AMS + RR 32 → Class IV (~9%)", () => {
+    // Age 65 (female -10) + nursing home 10 + AMS 20 + RR≥30 20 = 115 points = Class IV
+    const r = compute("calc_psi_port", {
+      ...baseline,
+      age_y: 75,
+      sex: "F",
+      nursing_home_resident: true,
+      altered_mental_status: true,
+      respiratory_rate_per_min: 32,
+    });
+    expect(r.result).toBe(115);
+    expect(r.interpretation.band).toContain("Class IV");
+  });
+
+  it("PSI: age <50 but with comorbidity falls through to point-based scoring", () => {
+    const r = compute("calc_psi_port", { ...baseline, congestive_heart_failure: true });
+    // Age 45 (M) + CHF 10 = 55 points = Class II
+    expect(r.result).toBe(55);
+    expect(r.interpretation.band).toContain("Class II");
+  });
+
+  it("PSI: SBP <90 contributes 20 points", () => {
+    const r = compute("calc_psi_port", { ...baseline, age_y: 50, systolic_bp_mm_hg: 80 });
+    // Age 50 (M) + SBP<90 20 = 70 = Class II (≤70)
+    expect(r.result).toBe(70);
+    expect(r.interpretation.band).toContain("Class II");
+  });
+
+  it("PSI: severely elevated points → Class V (>130)", () => {
+    const r = compute("calc_psi_port", {
+      ...baseline,
+      age_y: 80, // 80
+      neoplastic_disease: true, // 30
+      altered_mental_status: true, // 20
+      arterial_ph: 7.25, // 30
+      bun_mg_dl: 50, // 20
+    });
+    // 80 + 30 + 20 + 30 + 20 = 180 → Class V
+    expect(r.result).toBe(180);
+    expect(r.interpretation.band).toContain("Class V");
+  });
+});
+
 describe("Berlin ARDS (tree-class)", () => {
   const baseline = {
     onset_within_1_week: true,
